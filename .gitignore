@@ -1,0 +1,29 @@
+# Node
+node_modules/
+.expo/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+
+# Logs (keep portfolio.json but ignore raw logs)
+*.log
+logs/*.log
+
+# OS
+.DS_Store
+.idea/
+*.swp
+
+# Secrets — NEVER commit
+.env
+trading_agent/.env
+trading-agent-mobile/.env
+*.bak
+*.jsx.bak
+!logs/portfolio.json
