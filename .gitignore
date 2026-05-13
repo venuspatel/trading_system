@@ -27,3 +27,6 @@ trading-agent-mobile/.env
 *.bak
 *.jsx.bak
 !logs/portfolio.json
+*.jsonl
+trading_agent/logs/*.jsonl
+trading_agent_v2/logs/*.jsonl
