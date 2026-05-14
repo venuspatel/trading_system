@@ -75,7 +75,7 @@ export function AppProvider({ children }) {
   function switchBroker(id) { setActiveBrokerId(id); }
 
   const activeBroker = brokers.find(b => b.id === activeBrokerId);
-  const apiBase = agentUrl || 'http://localhost:8000';
+  const apiBase = agentUrl || 'https://finances-height-consistency-bandwidth.trycloudflare.com';
 
   return (
     <AppContext.Provider value={{ isLoggedIn, isLoading, login, logout, clearPin, brokers, activeBroker, activeBrokerId, switchBroker, agentUrl, saveAgentUrl, apiBase }}>
