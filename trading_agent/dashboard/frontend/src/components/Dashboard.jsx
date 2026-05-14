@@ -1,3 +1,4 @@
+import AIReviewerBadge from './AIReviewerBadge';
 import React, { useEffect, useRef, useState } from "react";
 import EquityChart from "./EquityChart";
 import TradeChart from "./TradeChart";
@@ -284,6 +285,7 @@ export default function Dashboard({ state, events, api }) {
           <span style={{fontSize:10,color:T.textMuted}}>
             cycle #{state.cycle_count||0} · {state.agent_status||"—"}
           </span>
+          <AIReviewerBadge reviewer={state.ai_reviewer} />
           {perf.grade && perf.grade !== "N/A" && (
             <span style={{fontSize:10,padding:"2px 8px",borderRadius:8,
               background:T.profit+"20",color:T.profit,border:`0.5px solid ${T.profit}44`}}>

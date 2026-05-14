@@ -115,6 +115,10 @@ class PortfolioTracker:
             f"over {len(self._trades)} historical trades"
         )
 
+        # Auto-heal historical_pnl_offset against Alpaca ground truth on every startup
+        self._alpaca_key    = None  # set externally via set_alpaca_credentials()
+        self._alpaca_secret = None
+
     # ------------------------------------------------------------------
     # Recording
     # ------------------------------------------------------------------
@@ -541,6 +545,53 @@ class PortfolioTracker:
                 json.dump(data, f, indent=2)
         except Exception as exc:
             logger.error(f"[Portfolio] Save failed: {exc}")
+
+
+    def set_alpaca_credentials(self, api_key: str, secret_key: str, paper: bool = True):
+        """
+        Call this after init with Alpaca credentials.
+        Auto-heals historical_pnl_offset to match Alpaca ground truth.
+        """
+        self._alpaca_key    = api_key
+        self._alpaca_secret = secret_key
+        self._alpaca_paper  = paper
+        self._heal_offset()
+
+    def _heal_offset(self):
+        """
+        Recalculates historical_pnl_offset so that:
+            sum(trades.pnl) + historical_pnl_offset == alpaca_true_pnl
+        Runs on every startup — keeps dashboard P&L in sync with Alpaca.
+        """
+        if not self._alpaca_key or not self._alpaca_secret:
+            return
+        try:
+            import urllib.request as _ur, json as _json
+            base = "https://paper-api.alpaca.markets" if getattr(self, "_alpaca_paper", True) else "https://api.alpaca.markets"
+            req  = _ur.Request(
+                f"{base}/v2/account",
+                headers={
+                    "APCA-API-KEY-ID":     self._alpaca_key,
+                    "APCA-API-SECRET-KEY": self._alpaca_secret,
+                }
+            )
+            acct        = _json.loads(_ur.urlopen(req, timeout=8).read())
+            true_equity = float(acct["equity"])
+            true_pnl    = true_equity - 1_000_000
+            trade_pnl   = sum(t.pnl for t in self._trades)
+            new_offset  = true_pnl - trade_pnl
+            old_offset  = self._historical_pnl_offset
+            if abs(new_offset - old_offset) > 50:  # only update if gap > $50
+                self._historical_pnl_offset = new_offset
+                self._save()
+                logger.info(
+                    f"[Portfolio] Auto-healed offset: ${old_offset:+.2f} → ${new_offset:+.2f} "
+                    f"(Alpaca equity=${true_equity:,.2f}, trade_pnl=${trade_pnl:+.2f})"
+                )
+            else:
+                logger.info(f"[Portfolio] Offset OK — gap ${abs(new_offset-old_offset):.2f} < $50 threshold")
+        except Exception as e:
+            logger.warning(f"[Portfolio] Offset heal failed: {e}")
 
     def _load(self):
         if not os.path.exists(self.data_path):

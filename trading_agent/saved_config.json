@@ -2,12 +2,12 @@
   "approach": "Profit Maximizer",
   "user_goal": "Maximize short-term profits with quick in/out trades",
   "market": "US stocks",
-  "min_strategies_agree": 2,
+  "min_strategies_agree": 3,
   "confidence_threshold": 65.0,
   "min_conviction_score": 2.0,
   "sizing_method": "Confidence-Scaled",
   "max_position_pct": 0.12,
-  "max_open_positions": 10,
+  "max_open_positions": 6,
   "stop_loss_pct": 0.01,
   "take_profit_pct": 0.03,
   "min_risk_reward": 1.5,
@@ -78,5 +78,8 @@
     "drawdown_circuit_breaker": false,
     "sector_concentration": false,
     "news_sentiment": false
-  }
+  },
+  "intraday_interval_min": 2,
+  "intraday_mode": true,
+  "scan_frequency_minutes": 2
 }

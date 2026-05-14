@@ -295,7 +295,7 @@ def _build_config(p: ConfigPayload) -> AgentConfig:
         existing.update(p.feature_flags)
         cfg.feature_flags = existing
     if hasattr(p, 'max_hold_days'):    cfg.max_hold_days    = p.max_hold_days
-    if hasattr(p, 'scan_frequency_minutes'): cfg.scan_frequency_minutes = p.scan_frequency_minutes
+    if hasattr(p, 'scan_frequency_minutes'): cfg.scan_frequency_minutes = p.scan_frequency_minutes; cfg.intraday_interval_min = p.scan_frequency_minutes; cfg.intraday_mode = True
     if hasattr(p, 'max_trades_per_day'):     cfg.max_trades_per_day     = p.max_trades_per_day
     if hasattr(p, 'max_consecutive_losses'): cfg.max_consecutive_losses = p.max_consecutive_losses
     if hasattr(p, 'cooldown_minutes'):       cfg.cooldown_minutes       = p.cooldown_minutes
@@ -843,6 +843,16 @@ def get_state():
         "news_sentiment":  _news_cache,
         "discipline":      _agent.discipline_status() if _agent and hasattr(_agent, 'discipline_status') else {},
         "conviction_breakdown": _agent.last_conviction_breakdown() if _agent and hasattr(_agent, 'last_conviction_breakdown') else {},
+        "ai_reviewer": (
+            _agent._dec_engine.reviewer.status_dict
+            if _agent and hasattr(_agent, '_dec_engine') and hasattr(_agent._dec_engine, 'reviewer') and _agent._dec_engine.reviewer
+            else {"enabled": False, "status": "not_configured", "calls_succeeded": 0, "calls_failed": 0, "last_error": "", "model": ""}
+        ),
+        "ai_reviewer": (
+            _agent._dec_engine.reviewer.status_dict
+            if _agent and hasattr(_agent, '_dec_engine') and hasattr(_agent._dec_engine, 'reviewer') and _agent._dec_engine.reviewer
+            else {"enabled": False, "status": "not_configured", "calls_succeeded": 0, "calls_failed": 0, "last_error": "", "model": ""}
+        ),
     }
 
 @app.post("/api/configure")

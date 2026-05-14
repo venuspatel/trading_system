@@ -40,7 +40,7 @@ import urllib.request
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
-MODEL             = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 MAX_TOKENS        = 600
 
 
@@ -83,6 +83,11 @@ class AIReviewer:
         self.min_ai_confidence = min_ai_confidence
         self.veto_enabled      = veto_enabled
         self._enabled          = bool(self.api_key)
+
+        self.last_error: str = ""
+        self.calls_succeeded: int = 0
+        self.calls_failed: int = 0
+        self.status: str = "enabled" if self._enabled else "no_api_key"
 
         if self._enabled:
             logger.info("[AIReviewer] Enabled — Claude will review all BUY/SELL decisions")
@@ -142,15 +147,32 @@ class AIReviewer:
                 f"AI {'APPROVED' if verdict.approved else 'VETOED'} "
                 f"({verdict.confidence:.0%}) — {verdict.reasoning[:60]}"
             )
+            self.calls_succeeded += 1
+            self.status = "enabled"
+            self.last_error = ""
             return verdict
         except Exception as e:
-            logger.warning(f"[AIReviewer] API call failed: {e} — approving by default")
+            err = str(e)
+            self.calls_failed += 1
+            self.last_error = err
+            if "credit" in err.lower() or "billing" in err.lower() or "too low" in err.lower():
+                self.status = "no_credits"
+                logger.error(f"[AIReviewer] CREDITS EXHAUSTED — go to console.anthropic.com/billing to top up. Approving by default.")
+            elif "not_found" in err.lower() or "model" in err.lower():
+                self.status = "bad_model"
+                logger.error(f"[AIReviewer] BAD MODEL STRING: {err}")
+            elif "authentication" in err.lower() or "401" in err:
+                self.status = "bad_key"
+                logger.error(f"[AIReviewer] INVALID API KEY — check ANTHROPIC_API_KEY in .env")
+            else:
+                self.status = "error"
+                logger.warning(f"[AIReviewer] API call failed: {e} — approving by default")
             return AIVerdict(
                 approved   = True,
                 confidence = 0.70,
-                reasoning  = "AI review unavailable — approved by default",
+                reasoning  = f"AI review unavailable ({self.status}) — approved by default",
                 used_ai    = False,
-                error      = str(e),
+                error      = err,
             )
 
     def _build_prompt(
@@ -212,8 +234,9 @@ Respond ONLY with this JSON — no preamble, no markdown:
   "suggestion": "one actionable suggestion if any"
 }}
 
-Approve if: conviction > 1.5, R:R > 1.5:1, strategies agree, no obvious red flags.
-Veto if: R:R < 1:1, conviction weak, against strong trend, or high portfolio concentration."""
+Approve if: conviction > 1.5, R:R > 1.5:1, strategies agree. High RSI (>70) is acceptable — this is a momentum strategy that buys strength, not mean reversion. Approve momentum trades.
+Veto if: R:R < 1:1, conviction < 1.5, more sell signals than buy signals, or position would exceed 15% of portfolio.
+Do NOT veto based on: high RSI, overbought conditions, or price being near highs — these are features of momentum trading."""
 
         return prompt
 
@@ -278,3 +301,16 @@ Veto if: R:R < 1:1, conviction weak, against strong trend, or high portfolio con
             raw_response = raw,
             used_ai      = True,
         )
+
+    @property
+    def status_dict(self) -> dict:
+        """Returns current reviewer status for dashboard display."""
+        return {
+            "enabled": self._enabled and self.status == "enabled",
+            "status": self.status,
+            "calls_succeeded": self.calls_succeeded,
+            "calls_failed": self.calls_failed,
+            "last_error": self.last_error,
+            "model": MODEL,
+        }
+

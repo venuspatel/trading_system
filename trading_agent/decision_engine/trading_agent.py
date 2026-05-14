@@ -90,6 +90,16 @@ class TradingAgent:
         import os as _os
         _portfolio_file = _os.environ.get("PORTFOLIO_FILE", "logs/portfolio.json")
         self._portfolio    = PortfolioTracker(data_path=_portfolio_file)
+        # Auto-heal P&L offset against Alpaca ground truth on every startup
+        import os as _os2
+        _alpaca_key = _os2.getenv("ALPACA_API_KEY", _os2.getenv("APCA_API_KEY_ID", ""))
+        _alpaca_sec = _os2.getenv("ALPACA_SECRET_KEY", _os2.getenv("APCA_API_SECRET_KEY", ""))
+        if _alpaca_key and _alpaca_sec:
+            self._portfolio.set_alpaca_credentials(
+                api_key    = _alpaca_key,
+                secret_key = _alpaca_sec,
+                paper      = getattr(config, "paper_trading", True),
+            )
         self._trailing_mgr  = TrailingStopManager(config)
         self._adaptive      = AdaptiveThresholdEngine()
         # Explicitly import from decision_engine.strategy_ranker (has record_trade)
@@ -851,7 +861,9 @@ class TradingAgent:
                 for sym, pos in self._executor.open_positions.items()
             }
         except Exception as _pe:
-            logger.debug(f"[Agent] Position sync at scan start: {_pe}")
+            logger.warning(f"[Agent] Position sync ERROR: {_pe}")
+            import traceback
+            logger.warning(traceback.format_exc())
 
         # Fetch market data
         start = scan_start - timedelta(days=365)
@@ -1398,6 +1410,13 @@ class TradingAgent:
                             available_cash   = _buying_power,
                         )
                         d.dollar_amount = kelly_res.dollar_amount
+                        logger.info(
+                            f"[KellyDebug] {d.symbol}: kelly_res.dollar=${kelly_res.dollar_amount:,.2f} "
+                            f"kelly_f={kelly_res.kelly_f:.4f} conv_mult={kelly_res.conviction_mult:.2f} "
+                            f"regime_mult={kelly_res.regime_mult:.2f} fraction={kelly_res.fraction:.4f} "
+                            f"buying_power=${_buying_power:,.2f} "
+                            f"win_rate={_win_rate:.2f} avg_win={_avg_win:.2f} avg_loss={_avg_loss:.2f}"
+                        )
 
                         # ── Recalculate shares from Kelly dollar_amount ────────
                         # engine.py sets shares based on old portfolio_value logic
@@ -1425,10 +1444,10 @@ class TradingAgent:
                             )
                             continue
 
-                        # ── Session loss guard — if same symbol lost 3+ times today, ban it ──
+                        # ── Session loss guard — if same symbol lost 2+ times today, ban it ──
                         if hasattr(self, '_ticker_cd'):
                             _sym_losses = self._ticker_cd._ticker_losses.get(d.symbol.upper(), 0)
-                            if _sym_losses >= 3:
+                            if _sym_losses >= 2:
                                 logger.warning(
                                     f"[SessionGuard] {d.symbol} BANNED — {_sym_losses} losses today. "
                                     f"Not re-entering this symbol again today."

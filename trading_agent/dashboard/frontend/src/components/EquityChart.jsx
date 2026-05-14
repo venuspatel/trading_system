@@ -50,6 +50,11 @@ export default function EquityChart({ curve, syntheticCurve = [], trades = [], T
     const labels = data.map(p => {
       const d = new Date(p.t);
       if (showXAxis) return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      if (r === "1D") {
+        // Show date + time so yesterday vs today is clear
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " " +
+               d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+      }
       return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
     });
 
@@ -69,7 +74,8 @@ export default function EquityChart({ curve, syntheticCurve = [], trades = [], T
     trades.forEach(tr => {
       if (!tr.exit_time) return;
       const te = toMs(tr.exit_time);
-      if (te < sliceStart || te > sliceEnd) return;
+      // Add 24h buffer on start so trades just before slice still show
+      if (te < sliceStart - 86400000 || te > sliceEnd) return;
       let ni = 0, nd = Infinity;
       data.forEach((pt, i) => {
         const df = Math.abs(toMs(pt.t) - te);
@@ -207,7 +213,7 @@ export default function EquityChart({ curve, syntheticCurve = [], trades = [], T
           {
             label: "Equity",
             data: vals,
-            borderColor: r === "ALL" ? "#1D9E75" : (liveDiff >= 0 ? "#1D9E75" : "#E24B4A"),
+            borderColor: "#1D9E75",
             borderWidth: r === "ALL" ? 2 : 2, pointRadius: 0,
             fill: false, tension: 0.4, order: 3,
           },
