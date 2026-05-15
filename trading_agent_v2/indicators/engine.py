@@ -39,6 +39,7 @@ class AnalysisSummary:
     """
     symbol:    str
     timestamp: datetime
+    approach:  str = ""  # trading mode — set by StrategyEngine
     signals:   Dict[str, Signal]   = field(default_factory=dict)
     errors:    Dict[str, str]      = field(default_factory=dict)
 

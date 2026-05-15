@@ -275,6 +275,10 @@ class StrategyEngine:
         timestamp = df.index[-1].to_pydatetime() if len(df) > 0 else datetime.utcnow()
         report    = StrategyReport(symbol=symbol, timestamp=timestamp)
 
+        # Pass approach to summary so strategies can self-filter by mode
+        if hasattr(summary, "approach"):
+            summary.approach = self._approach
+
         for strategy in self._strategies:
             try:
                 signal = strategy.generate_signal(symbol, df, summary)

@@ -38,6 +38,13 @@ class MeanReversionStrategy(BaseStrategy):
         return StrategyRole.COUNTER_TREND
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
+        # MeanReversion is a counter-trend strategy — it fights the tape in
+        # trend-following modes. Auto-disable for PM, Aggressive, Momentum modes.
+        _approach = str(getattr(summary, "approach", "") or "").lower()
+        if any(x in _approach for x in ("profit maximizer", "aggressive", "micro momentum")):
+            return self._hold(symbol, df,
+                f"MeanReversion disabled in {_approach} mode — counter-trend vs trend-following conflict")
+
         if len(df) < 25:
             return self._hold(symbol, df, "Not enough bars")
 
