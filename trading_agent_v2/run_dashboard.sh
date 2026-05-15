@@ -34,9 +34,8 @@ if [ ! -d "node_modules" ]; then
   npm install
 fi
 
-PORT=3001 npm start &
+BROWSER=none PORT=3001 npm start &
 FRONTEND_PID=$!
-sleep 3 && open http://localhost:3001 &
 
 echo ""
 echo "======================================================"
@@ -46,5 +45,22 @@ echo "  Press Ctrl+C to stop both"
 echo "======================================================"
 echo ""
 
+# Open dashboard in browser — reuse existing tab if already open
+(sleep 6 && osascript -e '
+tell application "Google Chrome"
+  set found to false
+  repeat with w in windows
+    repeat with t in tabs of w
+      if URL of t contains "localhost:3001" then
+        set found to true
+        set active tab index of w to index of t
+        set index of w to 1
+      end if
+    end repeat
+  end repeat
+  if not found then
+    open location "http://localhost:3001"
+  end if
+end tell' 2>/dev/null || open http://localhost:3001) &
 trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT TERM
 wait

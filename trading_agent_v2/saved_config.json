@@ -51,12 +51,12 @@
     "CandleReversal",
     "CandleContinuation",
     "Divergence",
-    "Fibonacci",
     "VolumeConfirmation",
     "MultiTimeframe",
     "TrendRegime",
     "TrendStrength",
-    "EarningsMomentum"
+    "EarningsMomentum",
+    "Fibonacci"
   ],
   "decision_logging": true,
   "max_trades_per_day": 9999,
@@ -78,8 +78,5 @@
     "drawdown_circuit_breaker": false,
     "sector_concentration": false,
     "news_sentiment": false
-  },
-  "intraday_interval_min": 2,
-  "intraday_mode": true,
-  "scan_frequency_minutes": 2
+  }
 }

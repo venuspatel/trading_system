@@ -83,7 +83,10 @@ class TradingAgent:
             approach_str = config.approach.value
         except AttributeError:
             approach_str = str(config.approach) if config.approach else "Balanced"
-        self._str_engine   = StrategyEngine(approach=approach_str)
+        self._str_engine   = StrategyEngine(
+            approach           = approach_str,
+            enabled_strategies = getattr(config, 'enabled_strategies', None),
+        )
         self._dec_engine   = DecisionEngine(config)
         self._executor     : Optional[AlpacaExecutor]  = None
         # Use separate portfolio file per agent instance
@@ -226,6 +229,9 @@ class TradingAgent:
         approach_str = new_config.approach.value if hasattr(new_config.approach,"value") else str(new_config.approach) if new_config.approach else "Balanced"
         if hasattr(self, "_str_engine"):
             self._str_engine.set_approach(approach_str)
+            self._str_engine.set_enabled_strategies(
+                getattr(new_config, 'enabled_strategies', None)
+            )
         logger.info(
             f"[Agent] Reconfigured: {(old_approach.value if hasattr(old_approach, 'value') else old_approach)} -> {approach_str} | "
             f"Strategy roles updated"

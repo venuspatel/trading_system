@@ -1194,6 +1194,96 @@ async def get_top_movers(approach: str = "Balanced"):
     # Fallback to curated defaults
     return {"symbols": DEFAULTS.get(approach, DEFAULTS["Balanced"]), "source": "default", "approach": approach}
 
+
+
+@app.get("/api/strategies")
+def get_strategies():
+    """List all strategies with enabled/disabled status and per-strategy win rate."""
+    import json as _json
+    cfg = _config
+
+    # All 15 strategy names from engine
+    all_names = []
+    if _agent and hasattr(_agent, "_str_engine"):
+        all_names = _agent._str_engine.get_all_strategy_names()
+    if not all_names:
+        all_names = [
+            "Momentum","MeanReversion","Breakout","CandleReversal",
+            "CandleContinuation","Divergence","Fibonacci","VolumeConfirmation",
+            "MultiTimeframe","TrendRegime","TrendStrength","EarningsMomentum",
+            "IntradayVWAP","OpeningRangeBreakout","MicroMomentum",
+        ]
+
+    enabled = set(cfg.enabled_strategies) if cfg and cfg.enabled_strategies else set(all_names)
+
+    # Per-strategy win rate from portfolio
+    live_p = (getattr(_agent, "_portfolio", None) or _portfolio) if _agent else _portfolio
+    strat_stats = {}
+    for t in live_p._trades:
+        name = getattr(t, "strategy", "") or ""
+        if not name or name == "recovered": continue
+        if name not in strat_stats:
+            strat_stats[name] = {"wins": 0, "losses": 0, "pnl": 0.0}
+        if t.pnl >= 0: strat_stats[name]["wins"] += 1
+        else:          strat_stats[name]["losses"] += 1
+        strat_stats[name]["pnl"] += t.pnl
+
+    result = []
+    for name in all_names:
+        st    = strat_stats.get(name, {})
+        total = st.get("wins", 0) + st.get("losses", 0)
+        result.append({
+            "name":     name,
+            "enabled":  name in enabled,
+            "trades":   total,
+            "wins":     st.get("wins", 0),
+            "losses":   st.get("losses", 0),
+            "win_rate": round(st["wins"] / total, 3) if total > 0 else None,
+            "pnl":      round(st.get("pnl", 0.0), 2),
+        })
+    return {"strategies": result, "total": len(all_names), "enabled_count": len(enabled)}
+
+
+@app.post("/api/strategies/toggle")
+async def toggle_strategy(body: dict):
+    """
+    Enable or disable a strategy by name.
+    Body: {"name": "Momentum", "enabled": true/false}
+    Takes effect on the next scan cycle — no restart needed.
+    """
+    global _config
+    name    = body.get("name", "").strip()
+    enabled = bool(body.get("enabled", True))
+
+    if not name:
+        return {"error": "name required"}
+    if not _config:
+        return {"error": "agent not configured"}
+
+    current = list(_config.enabled_strategies or [])
+
+    if enabled and name not in current:
+        current.append(name)
+    elif not enabled and name in current:
+        current.remove(name)
+    else:
+        return {"status": "no_change", "name": name, "enabled": enabled}
+
+    _config.enabled_strategies = current
+    _save_config_to_disk(_config)
+
+    # Apply immediately to running engine — no restart needed
+    if _agent and hasattr(_agent, "_str_engine"):
+        _agent._str_engine.set_enabled_strategies(current)
+
+    logger.info(f"[API] Strategy '{name}' {'ENABLED' if enabled else 'DISABLED'}")
+    return {
+        "status":  "updated",
+        "name":    name,
+        "enabled": enabled,
+        "enabled_strategies": current,
+    }
+
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):
     await ws_manager.connect(websocket)

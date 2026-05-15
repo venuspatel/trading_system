@@ -246,6 +246,29 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
   const [weeklyLossPct,setWeeklyLossPct]= useState(10);
   const [expandedStrat,setExpandedStrat]= useState(null);
   const loadedRef = useRef(false);
+  const [strategies,    setStrategies]    = useState([]);
+  const [stratLoading,  setStratLoading]  = useState(false);
+
+  const fetchStrategies = async () => {
+    try {
+      const r = await fetch(`${api}/api/strategies`);
+      const d = await r.json();
+      setStrategies(d.strategies || []);
+    } catch(e) { console.warn("strategies fetch failed", e); }
+  };
+
+  const toggleStrategy = async (name, enabled) => {
+    setStratLoading(true);
+    try {
+      await fetch(`${api}/api/strategies/toggle`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({name, enabled}),
+      });
+      await fetchStrategies();
+    } catch(e) { alert("Toggle failed: "+e.message); }
+    setStratLoading(false);
+  };
 
   const [flagTrailActivation,  setFlagTrailActivation]  = useState(false);
   const [flagSectorConc,       setFlagSectorConc]        = useState(false);
@@ -302,6 +325,10 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
     setCooldownMins(dd.cm); setProfitLockPct(dd.pl); setWeeklyLossPct(dd.wl);
   };
 
+  useEffect(() => {
+    if (tab === "strategies") fetchStrategies();
+  }, [tab]);
+
   const isPM = approach==="Profit Maximizer";
   const isLT = approach==="Long Term";
 
@@ -355,12 +382,16 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
     {name:"Trend Regime",type:"Advanced",ind:"ADX + 200 SMA + Market regime",desc:"Detects whether the market is trending or ranging, adjusting strategy selection accordingly.",candle:false},
     {name:"Trend Strength",type:"Advanced",ind:"ADX + 20/50 MA + Weekly momentum",desc:"Catches multi-week momentum moves. Fires when ADX>25, price above both MAs, 10-bar momentum > 5%.",candle:false},
     {name:"Earnings Momentum",type:"Advanced",ind:"Earnings gap + Volume surge + Gap hold",desc:"Detects post-earnings momentum gaps >3% with 2x volume, confirms price holds the gap.",candle:false},
+    {name:"Intraday VWAP",type:"Intraday",ind:"VWAP + Price cross + Volume",desc:"Buys when price crosses above VWAP with volume confirmation. Best for trending intraday sessions.",candle:false},
+    {name:"Opening Range Breakout",type:"Intraday",ind:"First 30-min range + Volume",desc:"Trades breakouts above/below the first 30-minute opening range. High win rate on trending days.",candle:false},
+    {name:"Micro Momentum",type:"Intraday",ind:"1-min bars + Price acceleration",desc:"Ultra short-term momentum scalping using 1-min bars. Fast in/out — designed for V2 experiment.",candle:false},
   ];
   const TC = {
     "Trend":{bg:"#0a1a30",color:"#4d9cf8",border:"#1a3a5a"},
     "Counter-trend":{bg:"#1a0a2a",color:"#a78bfa",border:"#3a1a5a"},
     "Candlestick":{bg:"#0a1a0a",color:"#22c55e",border:"#1a3a1a"},
     "Advanced":{bg:"#1a1200",color:"#f59e0b",border:"#3a2a00"},
+    "Intraday":{bg:"#001a1a",color:"#06b6d4",border:"#003a3a"},
   };
 
   return (
@@ -390,25 +421,49 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
               {approach==="Long Term"       &&"6+ strategies agree · 7% wide stop · 20% target · EOD only · Patient high-conviction holds"}
             </div>
           </div>
-          <div style={{fontSize:11,color:T.textMuted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>All {STRATS.length} active strategies — click to expand</div>
+          <div style={{fontSize:11,color:T.textMuted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>{strategies.filter(s=>s.enabled).length || STRATS.length}/{STRATS.length} strategies active — toggle to enable/disable · click to expand</div>
           {STRATS.map((s,i)=>{
-            const tc=TC[s.type]||TC["Advanced"];
-            const isOpen=expandedStrat===i;
+            const tc      = TC[s.type]||TC["Advanced"];
+            const isOpen  = expandedStrat===i;
+            // Match against API strategy names (no spaces)
+            const apiName = s.name.replace(/[- ]/g,"");
+            const apiStrat = strategies.find(x=>x.name===apiName||x.name===s.name);
+            const isEnabled = apiStrat ? apiStrat.enabled : true;
+            const trades    = apiStrat ? apiStrat.trades  : 0;
+            const winRate   = apiStrat ? apiStrat.win_rate : null;
             return(
-              <div key={s.name} onClick={()=>setExpandedStrat(isOpen?null:i)}
-                style={{background:T.cardBg,border:`1px solid ${isOpen?T.accent:T.border}`,borderRadius:8,padding:"10px 14px",marginBottom:6,cursor:"pointer"}}>
+              <div key={s.name}
+                style={{background:T.cardBg,border:`1px solid ${isOpen?T.accent:isEnabled?T.border:T.loss+"66"}`,
+                  borderRadius:8,padding:"10px 14px",marginBottom:6,opacity:isEnabled?1:0.55}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:3,height:32,borderRadius:2,background:tc.color,flexShrink:0}}/>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{fontSize:13,fontWeight:500,color:T.textPrimary}}>{s.name}</span>
+                  <div style={{width:3,height:36,borderRadius:2,background:isEnabled?tc.color:T.loss,flexShrink:0}}/>
+                  {/* expand area */}
+                  <div style={{flex:1,cursor:"pointer"}} onClick={()=>setExpandedStrat(isOpen?null:i)}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:13,fontWeight:500,color:isEnabled?T.textPrimary:T.textMuted}}>{s.name}</span>
                       <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:tc.bg,color:tc.color,border:`1px solid ${tc.border}`}}>{s.type}</span>
                       {s.candle&&<span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:"#0a1a0a",color:"#22c55e",border:"1px solid #1a3a1a"}}>Candlestick ✓</span>}
-                      {isPM&&s.candle&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:10,background:T.profit+"15",color:T.profit,border:`1px solid ${T.profit}33`}}>Used for exit</span>}
+                      {!isEnabled&&<span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:T.loss+"20",color:T.loss,border:`1px solid ${T.loss}44`}}>Disabled</span>}
+                      {winRate!=null&&<span style={{fontSize:10,padding:"2px 8px",borderRadius:10,
+                        background:winRate>=0.6?T.profit+"20":T.loss+"20",
+                        color:winRate>=0.6?T.profit:T.loss,
+                        border:`1px solid ${winRate>=0.6?T.profit:T.loss}44`}}>
+                        {Math.round(winRate*100)}% WR · {trades}T
+                      </span>}
                     </div>
                     <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>{s.ind}</div>
                   </div>
-                  <div style={{fontSize:12,color:T.textMuted}}>{isOpen?"▲":"▼"}</div>
+                  {/* toggle switch */}
+                  <div onClick={e=>{e.stopPropagation();toggleStrategy(apiName,!isEnabled);}}
+                    title={isEnabled?"Disable this strategy":"Enable this strategy"}
+                    style={{position:"relative",width:36,height:20,borderRadius:10,flexShrink:0,
+                      background:isEnabled?T.profit:T.bg3,cursor:stratLoading?"wait":"pointer",
+                      transition:"background .2s",border:`1px solid ${isEnabled?T.profit:T.border}`}}>
+                    <div style={{position:"absolute",top:3,left:isEnabled?17:3,width:12,height:12,
+                      borderRadius:"50%",background:"#fff",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,.3)"}}/>
+                  </div>
+                  <div style={{fontSize:12,color:T.textMuted,cursor:"pointer"}}
+                    onClick={()=>setExpandedStrat(isOpen?null:i)}>{isOpen?"▲":"▼"}</div>
                 </div>
                 {isOpen&&<div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`,fontSize:12,color:T.textSecondary,lineHeight:1.7}}>{s.desc}</div>}
               </div>

@@ -201,8 +201,9 @@ class StrategyEngine:
         "Long Term":        {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
     }
 
-    def __init__(self, approach: str = "Balanced"):
+    def __init__(self, approach: str = "Balanced", enabled_strategies: list = None):
         self._approach = approach
+        self._enabled  = set(enabled_strategies) if enabled_strategies else None  # None = all enabled
         self._all_strategies: List[BaseStrategy] = [
             MomentumStrategy(),
             MeanReversionStrategy(),
@@ -227,6 +228,8 @@ class StrategyEngine:
         allowed = self.MODE_ROLES.get(self._approach,
                   {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.COUNTER_TREND})
         active = [s for s in self._all_strategies if s.role in allowed]
+        if self._enabled is not None:
+            active = [s for s in active if s.name in self._enabled]
         return active
 
     def set_approach(self, approach: str):
@@ -238,6 +241,15 @@ class StrategyEngine:
             f"Active strategies: {[s.name for s in active]} | "
             f"Filtered out: {[s.name for s in self._all_strategies if s not in active]}"
         )
+
+    def set_enabled_strategies(self, enabled: list):
+        """Update which strategies are enabled — takes effect next scan cycle."""
+        self._enabled = set(enabled) if enabled else None
+        logger.info(f"[StrategyEngine] Enabled strategies updated: {sorted(self._enabled) if self._enabled else 'ALL'}")
+
+    def get_all_strategy_names(self) -> list:
+        """Return all 15 strategy names regardless of mode/enabled filter."""
+        return [s.name for s in self._all_strategies]
 
     @property
     def strategy_names(self) -> List[str]:
