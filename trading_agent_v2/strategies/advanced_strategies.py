@@ -629,9 +629,11 @@ class TrendRegimeStrategy(BaseStrategy):
         return float(adx.iloc[-1])
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
+        # Fix 5: VIX proxy + ATR stops + sector awareness + PM mode filter
         if len(df) < 30:
             return self._hold(symbol, df, "Not enough bars")
 
+        import pandas as pd
         price     = float(df["close"].iloc[-1])
         timestamp = df.index[-1].to_pydatetime()
 
@@ -646,8 +648,32 @@ class TrendRegimeStrategy(BaseStrategy):
 
         above_sma50 = ma_sig.details.get("above_sma50", False) if ma_sig else False
 
-        # Classify regime
-        if high_vol:
+        # ── Fix 5a: VIX proxy from SPY realized volatility ───────────────
+        # Use 10-day realized vol of SPY as VIX proxy
+        # High vol (>2% daily moves) = reduce confidence, warn dashboard
+        spy_df    = getattr(summary, "spy_df", None)
+        vix_proxy = 15.0  # default — calm market
+        vix_high  = False
+        if spy_df is not None and len(spy_df) >= 11:
+            try:
+                spy_returns = spy_df["close"].pct_change().dropna()
+                realized_vol = float(spy_returns.tail(10).std()) * (252 ** 0.5) * 100
+                vix_proxy    = realized_vol
+                vix_high     = realized_vol > 25   # annualized vol > 25% = elevated fear
+            except Exception:
+                pass
+
+        # ── Fix 5b: ATR for adaptive stops ───────────────────────────────
+        try:
+            hi, lo, cl = df["high"], df["low"], df["close"]
+            tr    = pd.concat([hi-lo, (hi-cl.shift(1)).abs(),
+                               (lo-cl.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        # ── Classify regime ───────────────────────────────────────────────
+        if high_vol or vix_high:
             regime = "HIGH_VOLATILITY"
         elif adx > 25 and above_sma50:
             regime = "TRENDING_UP"
@@ -656,67 +682,92 @@ class TrendRegimeStrategy(BaseStrategy):
         else:
             regime = "RANGING"
 
-        confs = [f"Regime: {regime}", f"ADX: {adx:.1f}"]
+        confs     = [f"Regime: {regime}", f"ADX: {adx:.1f}",
+                     f"VIX proxy: {vix_proxy:.1f}%"]
 
         if regime == "HIGH_VOLATILITY":
             return self._hold(symbol, df,
-                f"High volatility regime (ADX={adx:.1f}, BW={bw:.3f}) -- waiting for clarity")
+                f"High vol regime: ADX={adx:.1f} VIX~{vix_proxy:.1f}% — waiting for clarity")
+
+        # ── Fix 5c: RANGING mode — disable mean reversion in PM mode ─────
+        # PM is trend-following — don't fade extremes in ranging markets
+        _approach = str(getattr(summary, "approach", "")).lower()
+        _is_pm    = any(x in _approach for x in ("profit maximizer", "aggressive"))
 
         if regime == "TRENDING_UP" and score >= 1.5:
             confs += [f"Trend confirmed (ADX={adx:.1f})", f"Score={score:+.1f}"]
-            stop = price * 0.97
+            # VIX penalty: reduce confidence when vol is elevated
+            vix_penalty = 0.10 if vix_proxy > 20 else 0.0
+            confidence  = min(0.60 + adx/100 + score*0.04 - vix_penalty, 0.92)
+            stop = price - (1.5 * atr14)
+            tp   = price + (3.0 * atr14)
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
                 action=TradeAction.BUY,
-                confidence=min(0.60 + adx/100 + score*0.04, 0.92),
-                reason=f"Trending up regime with bullish score ({score:+.1f})",
+                confidence=round(confidence, 3),
+                reason=(f"TRENDING_UP: ADX={adx:.1f} score={score:+.1f} "
+                        f"VIX~{vix_proxy:.1f}%"),
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price * 1.05, 2),
-                details={"regime": regime, "adx": round(adx, 1), "score": score},
+                take_profit=round(tp, 2),
+                details={"regime": regime, "adx": round(adx,1),
+                         "score": score, "vix_proxy": round(vix_proxy,1),
+                         "atr14": round(atr14,3)},
             )
 
         if regime == "TRENDING_DOWN" and score <= -1.5:
             confs += [f"Downtrend confirmed (ADX={adx:.1f})", f"Score={score:+.1f}"]
-            stop = price * 1.03
+            vix_penalty = 0.10 if vix_proxy > 20 else 0.0
+            confidence  = min(0.60 + adx/100 + abs(score)*0.04 - vix_penalty, 0.90)
+            stop = price + (1.5 * atr14)
+            tp   = price - (3.0 * atr14)
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
                 action=TradeAction.SELL,
-                confidence=min(0.60 + adx/100 + abs(score)*0.04, 0.90),
-                reason=f"Trending down regime with bearish score ({score:+.1f})",
+                confidence=round(confidence, 3),
+                reason=(f"TRENDING_DOWN: ADX={adx:.1f} score={score:+.1f} "
+                        f"VIX~{vix_proxy:.1f}%"),
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price * 0.95, 2),
-                details={"regime": regime, "adx": round(adx, 1), "score": score},
+                take_profit=round(tp, 2),
+                details={"regime": regime, "adx": round(adx,1),
+                         "score": score, "vix_proxy": round(vix_proxy,1)},
             )
 
-        if regime == "RANGING":
-            # In ranging markets, fade extremes (mean reversion logic)
+        if regime == "RANGING" and not _is_pm:
+            # Only fade extremes in non-PM modes
             rsi_sig = summary.signals.get("RSI")
             rsi_val = rsi_sig.details.get("rsi", 50) if rsi_sig else 50
+            stop_buy  = price - (1.0 * atr14)
+            tp_buy    = price + (2.0 * atr14)
+            stop_sell = price + (1.0 * atr14)
+            tp_sell   = price - (2.0 * atr14)
 
             if rsi_val < 32:
                 confs.append(f"Ranging + oversold RSI ({rsi_val:.1f})")
                 return TradeSignal(
                     strategy=self.name, symbol=symbol, timestamp=timestamp,
-                    action=TradeAction.BUY, confidence=0.65,
-                    reason=f"Ranging market + oversold (RSI={rsi_val:.1f})",
+                    action=TradeAction.BUY, confidence=0.62,
+                    reason=f"RANGING oversold: RSI={rsi_val:.1f} VIX~{vix_proxy:.1f}%",
                     confirmations=confs,
-                    stop_loss=round(price * 0.985, 2),
-                    take_profit=round(price * 1.025, 2),
-                    details={"regime": regime, "adx": round(adx, 1)},
+                    stop_loss=round(stop_buy, 2),
+                    take_profit=round(tp_buy, 2),
+                    details={"regime": regime, "adx": round(adx,1),
+                             "vix_proxy": round(vix_proxy,1)},
                 )
             if rsi_val > 68:
                 confs.append(f"Ranging + overbought RSI ({rsi_val:.1f})")
                 return TradeSignal(
                     strategy=self.name, symbol=symbol, timestamp=timestamp,
-                    action=TradeAction.SELL, confidence=0.65,
-                    reason=f"Ranging market + overbought (RSI={rsi_val:.1f})",
+                    action=TradeAction.SELL, confidence=0.62,
+                    reason=f"RANGING overbought: RSI={rsi_val:.1f} VIX~{vix_proxy:.1f}%",
                     confirmations=confs,
-                    stop_loss=round(price * 1.015, 2),
-                    take_profit=round(price * 0.975, 2),
-                    details={"regime": regime, "adx": round(adx, 1)},
+                    stop_loss=round(stop_sell, 2),
+                    take_profit=round(tp_sell, 2),
+                    details={"regime": regime, "adx": round(adx,1),
+                             "vix_proxy": round(vix_proxy,1)},
                 )
 
         return self._hold(symbol, df,
-            f"Regime={regime}, ADX={adx:.1f}, score={score:+.1f} -- no clear entry")
+            f"Regime={regime} ADX={adx:.1f} score={score:+.1f} "
+            f"VIX~{vix_proxy:.1f}% — no clear entry")
