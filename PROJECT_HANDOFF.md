@@ -281,4 +281,142 @@ for name,k,s in [
 
 ---
 
+## SESSION UPDATE — May 15, 2026 (Afternoon)
+
+### V2 Strategy Overhaul — All 15 Strategies Improved
+All fixes applied to trading_agent_v2 only. V1 untouched.
+
+| Fix | Strategy | Key Changes |
+|---|---|---|
+| 1 | MeanReversion | Auto-disabled in Profit Maximizer/Aggressive mode |
+| 2 | Momentum | ADX<20 gate + RS vs SPY + ATR stops |
+| 3 | MultiTimeframe | 3-TF alignment + 1.3x multiplier + weekly from 15-min bars |
+| 4 | Divergence | 20-bar lookback + confirmation candle required + ATR stops |
+| 5 | TrendRegime | VIX proxy from SPY realized vol + ATR stops + PM mode filter |
+| 6 | TrendStrength | Momentum 5%→3% + weekly ADX check + tiered confidence |
+| 7 | Breakout | Base quality check + extension cap 3% + base-low stop + RS filter |
+| 8 | VolumeConfirmation | OBV 10-bar slope + VWAP check + tiered confidence by vol ratio |
+| 9 | CandleReversal | Volume gate + prior trend check + multi-candle confidence boost |
+| 10 | IntradayVWAP | Enabled + VWAP reclaim pattern + 2-bar confirmation |
+| 11 | CandleContinuation | Volume gate 1.3x + ATR body size filter |
+| 12 | EarningsMomentum | Gap-fill detection + EPS magnitude boost + recency penalty |
+| 13 | Fibonacci | 20-bar swing + 5% min move + confluence check + RSI gate |
+| 14 | OpeningRangeBreakout | Adaptive OR duration + gap-and-go detection + ATR stops |
+| 15 | MicroMomentum | Vol 2.0x→1.3x + time filter 9:45-11:30/2:00-3:30 ET + VWAP |
+
+### Strategy Toggle UI (V2 Dashboard)
+- Config → Strategies tab: each strategy has a live toggle switch
+- Toggle calls /api/strategies/toggle instantly — no restart needed
+- Counter shows X/15 strategies active
+- Win rate badge auto-populates as trades accumulate
+- All 15 strategies visible including IntradayVWAP, ORB, MicroMomentum
+
+### Feature Flags (V2)
+- Flag 5 (trail_activation): ON — trail only after +0.5% gain
+- Flag 1 (news_sentiment): ON — fully wired to conviction engine
+- Flags 2/3/4: OFF — config keys exist but no implementation yet
+
+### News Sentiment (V2) — Fully Working
+- Fetches 10 articles/symbol from Alpaca + Yahoo
+- Claude scores each symbol (model: claude-sonnet-4-6)
+- ±0.8 to ±1.5 conviction boost per symbol
+- Auto-refreshes every 10 scan cycles (~20 min)
+- Survives restarts — wired in _auto_intraday_restore
+- Manual refresh available from News tab on dashboard
+
+### Infrastructure Fixes Applied to Both V1 + V2
+- Fix A: sync_eod_from_alpaca() — injects missing EOD trades on startup
+- Fix B: force_scan() passes scan_type="INTRADAY" explicitly
+- run_dashboard.sh: BROWSER=none stops react-scripts auto-open
+- run_dashboard.sh: osascript reuses existing Chrome tab
+
+### V2 Shared with V1 — approach field on AnalysisSummary
+- indicators/engine.py: AnalysisSummary now has approach field
+- strategies/engine.py: sets summary.approach before each evaluate()
+- Allows strategies to self-filter by trading mode
+
+### NEXT SESSION TASK
+Design and build the AI Self-Configuration System for V2.
+The AI agent autonomously reads its own performance + market data
+and reconfigures V2 for maximum profit.
+
+Choose autonomy level before building:
+  Option A — Advisory: AI suggests changes, human approves on dashboard
+  Option B — Semi-auto: AI applies changes, logs reasoning, one-click revert
+  Option C — Full auto: AI runs at 6 AM PST, reconfigures completely, no human loop
+
+Recommended: Start with Option B — safe but fully autonomous within guardrails.
+
+
+---
+
+## SESSION UPDATE — May 15, 2026 (Afternoon)
+
+### V2 Strategy Overhaul — All 15 Strategies Improved
+All fixes applied to trading_agent_v2 only. V1 untouched.
+
+| Fix | Strategy | Key Changes |
+|---|---|---|
+| 1 | MeanReversion | Auto-disabled in Profit Maximizer/Aggressive mode |
+| 2 | Momentum | ADX<20 gate + RS vs SPY + ATR stops |
+| 3 | MultiTimeframe | 3-TF alignment + 1.3x multiplier + weekly from 15-min bars |
+| 4 | Divergence | 20-bar lookback + confirmation candle required + ATR stops |
+| 5 | TrendRegime | VIX proxy from SPY realized vol + ATR stops + PM mode filter |
+| 6 | TrendStrength | Momentum 5%→3% + weekly ADX check + tiered confidence |
+| 7 | Breakout | Base quality check + extension cap 3% + base-low stop + RS filter |
+| 8 | VolumeConfirmation | OBV 10-bar slope + VWAP check + tiered confidence by vol ratio |
+| 9 | CandleReversal | Volume gate + prior trend check + multi-candle confidence boost |
+| 10 | IntradayVWAP | Enabled + VWAP reclaim pattern + 2-bar confirmation |
+| 11 | CandleContinuation | Volume gate 1.3x + ATR body size filter |
+| 12 | EarningsMomentum | Gap-fill detection + EPS magnitude boost + recency penalty |
+| 13 | Fibonacci | 20-bar swing + 5% min move + confluence check + RSI gate |
+| 14 | OpeningRangeBreakout | Adaptive OR duration + gap-and-go detection + ATR stops |
+| 15 | MicroMomentum | Vol 2.0x→1.3x + time filter 9:45-11:30/2:00-3:30 ET + VWAP |
+
+### Strategy Toggle UI (V2 Dashboard)
+- Config → Strategies tab: each strategy has a live toggle switch
+- Toggle calls /api/strategies/toggle instantly — no restart needed
+- Counter shows X/15 strategies active
+- Win rate badge auto-populates as trades accumulate
+- All 15 strategies visible including IntradayVWAP, ORB, MicroMomentum
+
+### Feature Flags (V2)
+- Flag 5 (trail_activation): ON — trail only after +0.5% gain
+- Flag 1 (news_sentiment): ON — fully wired to conviction engine
+- Flags 2/3/4: OFF — config keys exist but no implementation yet
+
+### News Sentiment (V2) — Fully Working
+- Fetches 10 articles/symbol from Alpaca + Yahoo
+- Claude scores each symbol (model: claude-sonnet-4-6)
+- ±0.8 to ±1.5 conviction boost per symbol
+- Auto-refreshes every 10 scan cycles (~20 min)
+- Survives restarts — wired in _auto_intraday_restore
+- Manual refresh available from News tab on dashboard
+
+### Infrastructure Fixes Applied to Both V1 + V2
+- Fix A: sync_eod_from_alpaca() — injects missing EOD trades on startup
+- Fix B: force_scan() passes scan_type="INTRADAY" explicitly
+- run_dashboard.sh: BROWSER=none stops react-scripts auto-open
+- run_dashboard.sh: osascript reuses existing Chrome tab
+
+### V2 Shared with V1 — approach field on AnalysisSummary
+- indicators/engine.py: AnalysisSummary now has approach field
+- strategies/engine.py: sets summary.approach before each evaluate()
+- Allows strategies to self-filter by trading mode
+
+### NEXT SESSION TASK
+Design and build the AI Self-Configuration System for V2.
+The AI agent autonomously reads its own performance + market data
+and reconfigures V2 for maximum profit.
+
+Choose autonomy level before building:
+  Option A — Advisory: AI suggests changes, human approves on dashboard
+  Option B — Semi-auto: AI applies changes, logs reasoning, one-click revert
+  Option C — Full auto: AI runs at 6 AM PST, reconfigures completely, no human loop
+
+Recommended: Start with Option B — safe but fully autonomous within guardrails.
+
+
+---
+
 *TradeAgent Project Handoff | May 15, 2026 | Confidential*
