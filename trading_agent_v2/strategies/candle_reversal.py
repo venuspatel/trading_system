@@ -160,9 +160,11 @@ class CandleReversalStrategy(BaseStrategy):
         return "Reversal patterns (V2: + Pin Bar, Harami, Doji variants) at S/R levels"
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
+        # Fix 9: Volume confirmation + prior trend check + ATR stops + boosted multi-candle confidence
         if len(df) < 10:
             return self._hold(symbol, df, "Not enough bars")
 
+        import pandas as pd
         price     = float(df["close"].iloc[-1])
         timestamp = df.index[-1].to_pydatetime()
 
@@ -174,142 +176,203 @@ class CandleReversalStrategy(BaseStrategy):
         supports    = sr_sig.details.get("support_levels", [])    if sr_sig else []
         resistances = sr_sig.details.get("resistance_levels", []) if sr_sig else []
 
-        # ── Detect V1 patterns from candle indicator ──────────
+        # ── Fix 9a: Volume confirmation ──────────────────────────────────
+        # Low-vol reversal candles are fake — need at least 1.2x avg volume
+        avg_vol   = float(df["volume"].rolling(20).mean().iloc[-1]) if len(df) >= 20 else 0
+        curr_vol  = float(df["volume"].iloc[-1])
+        vol_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
+        vol_ok    = vol_ratio >= 1.2
+
+        # ── Fix 9b: Prior trend check ────────────────────────────────────
+        # Bullish reversal needs prior downtrend (5-bar), bearish needs uptrend
+        if len(df) >= 6:
+            prior_5  = df["close"].iloc[-6:-1]
+            prior_trend_down = float(prior_5.iloc[-1]) < float(prior_5.iloc[0])
+            prior_trend_up   = float(prior_5.iloc[-1]) > float(prior_5.iloc[0])
+        else:
+            prior_trend_down = prior_trend_up = True  # default pass
+
+        # ── Fix 9c: ATR for adaptive stops ──────────────────────────────
+        try:
+            hi, lo, cl = df["high"], df["low"], df["close"]
+            tr    = pd.concat([hi-lo, (hi-cl.shift(1)).abs(),
+                               (lo-cl.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        # ── Detect V1 patterns from candle indicator ─────────────────────
         v1_pattern = None
         if candle_sig:
             p = candle_sig.details.get("pattern")
             if p and p != "Doji":
                 v1_pattern = p
 
-        # ── Detect V2 new patterns from raw OHLCV ─────────────
+        # ── Detect V2 new patterns from raw OHLCV ────────────────────────
         bull_pin, bull_pin_ratio = _detect_pin_bar(df, bullish=True)
         bear_pin, bear_pin_ratio = _detect_pin_bar(df, bullish=False)
         harami_pattern, harami_dir = _detect_harami(df)
         doji_variant = _detect_doji_variant(df)
 
-        # ── Determine signal direction ─────────────────────────
-
-        # --- BULLISH signals ---
+        # ── BULLISH signals ───────────────────────────────────────────────
         bullish_pattern = None
         base_confidence = 0.55
+        is_multi_candle = False
 
         if v1_pattern in BULLISH_PATTERNS:
             bullish_pattern = v1_pattern
-            if v1_pattern in {"Bullish Engulfing", "Morning Star"}:
-                base_confidence = 0.60
+            if v1_pattern == "Morning Star":
+                base_confidence = 0.68   # Fix 9d: 3-candle pattern = higher base
+                is_multi_candle = True
+            elif v1_pattern in {"Bullish Engulfing"}:
+                base_confidence = 0.63
+                is_multi_candle = True
             elif v1_pattern == "Inverted Hammer":
-                base_confidence = 0.60  # 60% win rate research
-
+                base_confidence = 0.60
         elif bull_pin:
             bullish_pattern = f"Pin Bar (wick {bull_pin_ratio:.1f}x body)"
-            base_confidence = 0.62  # 68% win rate → 62% base before confirmations
-
+            base_confidence = 0.62
         elif harami_pattern and harami_dir == "bullish":
             bullish_pattern = harami_pattern
-            base_confidence = 0.65 if harami_pattern == "Harami Cross" else 0.60
-
+            base_confidence = 0.68 if harami_pattern == "Harami Cross" else 0.62
+            is_multi_candle = True
         elif doji_variant == "Dragonfly Doji":
             bullish_pattern = "Dragonfly Doji"
             base_confidence = 0.55
 
         if bullish_pattern:
+            # Prior trend check — need downtrend before bullish reversal
+            if not prior_trend_down:
+                return self._hold(symbol, df,
+                    f"{bullish_pattern} skipped: no prior downtrend (reversal needs trend to reverse)")
+
             confirmations = [f"{bullish_pattern} detected"]
             confidence    = base_confidence
 
-            near_support = any(
-                abs(price - s) / price < self.sr_proximity
-                for s in supports
-            )
+            # Volume confirmation
+            if vol_ok:
+                confirmations.append(f"volume confirmed {vol_ratio:.1f}x avg")
+                confidence += 0.06
+            else:
+                confidence -= 0.08   # low-vol reversal = penalty
+
+            near_support = any(abs(price - s) / price < self.sr_proximity for s in supports)
             if near_support:
                 confirmations.append("at support level")
-                confidence += 0.12
-
+                confidence += 0.10
             if rsi_val < 50:
-                confirmations.append(f"RSI not overbought ({rsi_val:.1f})")
-                confidence += 0.08
+                confirmations.append(f"RSI={rsi_val:.1f}")
+                confidence += 0.06
             if rsi_val < 35:
-                confirmations.append(f"RSI oversold ({rsi_val:.1f})")
-                confidence += 0.07
+                confirmations.append("RSI oversold")
+                confidence += 0.05
+            if is_multi_candle:
+                confirmations.append("multi-candle confirmation")
+                confidence += 0.04
 
-            stop = float(df["low"].iloc[-1]) * 0.99
-            tp   = price + (price - stop) * 2.0
+            stop = price - (1.5 * atr14)
+            tp   = price + (3.0 * atr14)
 
             return TradeSignal(
                 strategy      = self.name,
                 symbol        = symbol,
                 timestamp     = timestamp,
                 action        = TradeAction.BUY,
-                confidence    = min(confidence, 0.93),
-                reason        = f"{bullish_pattern} at key level (RSI={rsi_val:.1f})",
+                confidence    = round(min(confidence, 0.93), 3),
+                reason        = (f"{bullish_pattern} vol={vol_ratio:.1f}x "
+                                 f"RSI={rsi_val:.1f} "
+                                 f"{'at support' if near_support else ''}"),
                 confirmations = confirmations,
                 stop_loss     = round(stop, 2),
                 take_profit   = round(tp, 2),
                 details       = {
-                    "pattern":      bullish_pattern,
-                    "rsi":          rsi_val,
-                    "near_support": near_support if supports else False,
-                    "v2_pattern":   bullish_pattern not in BULLISH_PATTERNS,
+                    "pattern":       bullish_pattern,
+                    "rsi":           rsi_val,
+                    "near_support":  near_support,
+                    "vol_ratio":     round(vol_ratio, 2),
+                    "vol_ok":        vol_ok,
+                    "prior_down":    prior_trend_down,
+                    "multi_candle":  is_multi_candle,
+                    "atr14":         round(atr14, 3),
                 },
             )
 
-        # --- BEARISH signals ---
+        # ── BEARISH signals ───────────────────────────────────────────────
         bearish_pattern = None
         base_confidence = 0.55
+        is_multi_candle = False
 
         if v1_pattern in BEARISH_PATTERNS:
             bearish_pattern = v1_pattern
-            if v1_pattern in {"Bearish Engulfing", "Evening Star"}:
-                base_confidence = 0.60
-
+            if v1_pattern == "Evening Star":
+                base_confidence = 0.68
+                is_multi_candle = True
+            elif v1_pattern == "Bearish Engulfing":
+                base_confidence = 0.63
+                is_multi_candle = True
         elif bear_pin:
             bearish_pattern = f"Pin Bar bearish (wick {bear_pin_ratio:.1f}x body)"
             base_confidence = 0.62
-
         elif harami_pattern and harami_dir == "bearish":
             bearish_pattern = harami_pattern
-            base_confidence = 0.65 if harami_pattern == "Harami Cross" else 0.60
-
+            base_confidence = 0.68 if harami_pattern == "Harami Cross" else 0.62
+            is_multi_candle = True
         elif doji_variant == "Gravestone Doji":
             bearish_pattern = "Gravestone Doji"
             base_confidence = 0.57
 
         if bearish_pattern:
+            if not prior_trend_up:
+                return self._hold(symbol, df,
+                    f"{bearish_pattern} skipped: no prior uptrend")
+
             confirmations = [f"{bearish_pattern} detected"]
             confidence    = base_confidence
 
-            near_resistance = any(
-                abs(price - r) / price < self.sr_proximity
-                for r in resistances
-            )
+            if vol_ok:
+                confirmations.append(f"volume confirmed {vol_ratio:.1f}x avg")
+                confidence += 0.06
+            else:
+                confidence -= 0.08
+
+            near_resistance = any(abs(price - r) / price < self.sr_proximity for r in resistances)
             if near_resistance:
                 confirmations.append("at resistance level")
-                confidence += 0.12
-
+                confidence += 0.10
             if rsi_val > 50:
-                confirmations.append(f"RSI elevated ({rsi_val:.1f})")
-                confidence += 0.08
+                confirmations.append(f"RSI={rsi_val:.1f} elevated")
+                confidence += 0.06
             if rsi_val > 65:
-                confirmations.append(f"RSI overbought ({rsi_val:.1f})")
-                confidence += 0.07
+                confirmations.append("RSI overbought")
+                confidence += 0.05
+            if is_multi_candle:
+                confirmations.append("multi-candle confirmation")
+                confidence += 0.04
 
-            stop = float(df["high"].iloc[-1]) * 1.01
-            tp   = price - (stop - price) * 2.0
+            stop = price + (1.5 * atr14)
+            tp   = price - (3.0 * atr14)
 
             return TradeSignal(
                 strategy      = self.name,
                 symbol        = symbol,
                 timestamp     = timestamp,
                 action        = TradeAction.SELL,
-                confidence    = min(confidence, 0.93),
-                reason        = f"{bearish_pattern} at key level (RSI={rsi_val:.1f})",
+                confidence    = round(min(confidence, 0.93), 3),
+                reason        = (f"{bearish_pattern} vol={vol_ratio:.1f}x "
+                                 f"RSI={rsi_val:.1f} "
+                                 f"{'at resistance' if near_resistance else ''}"),
                 confirmations = confirmations,
                 stop_loss     = round(stop, 2),
                 take_profit   = round(tp, 2),
                 details       = {
                     "pattern":          bearish_pattern,
                     "rsi":              rsi_val,
-                    "near_resistance":  near_resistance if resistances else False,
-                    "v2_pattern":       bearish_pattern not in BEARISH_PATTERNS,
+                    "near_resistance":  near_resistance,
+                    "vol_ratio":        round(vol_ratio, 2),
+                    "vol_ok":           vol_ok,
+                    "prior_up":         prior_trend_up,
+                    "multi_candle":     is_multi_candle,
+                    "atr14":            round(atr14, 3),
                 },
             )
 
