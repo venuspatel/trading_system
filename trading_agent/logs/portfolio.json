@@ -1,6 +1,6 @@
 {
   "starting_value": 1000000,
-  "historical_pnl_offset": 24952.099999999966,
+  "historical_pnl_offset": 24393.27,
   "peak_value": 1090879.1,
   "day_date": "2026-05-14",
   "day_start_pnl": 3021.7400000000002,
@@ -1059,19 +1059,6 @@
       "approach": "Profit Maximizer"
     },
     {
-      "symbol": "MARA",
-      "entry_price": 13.31,
-      "exit_price": 13.155,
-      "qty": 3644,
-      "entry_time": "2026-05-14 17:53:32.484883+00:00",
-      "exit_time": "2026-05-14T18:02:06.042815+00:00",
-      "pnl": -564.82,
-      "pnl_pct": -0.0116,
-      "exit_reason": "Trailing stop hit at $13.18 (-1.2%)",
-      "strategy": "",
-      "approach": "Profit Maximizer"
-    },
-    {
       "symbol": "RKLB",
       "entry_price": 130.25,
       "exit_price": 131.48,
@@ -1096,71 +1083,9 @@
       "exit_reason": "Momentum weakened: conviction dropped fr",
       "strategy": "",
       "approach": "Profit Maximizer"
-    },
-    {
-      "symbol": "NVDA",
-      "entry_time": "2026-05-14T17:33:00+00:00",
-      "exit_time": "2026-05-14T19:30:00+00:00",
-      "entry_price": 234.11,
-      "exit_price": 235.68,
-      "qty": 213,
-      "pnl": 334.41,
-      "exit_reason": "EOD close (recovered from Alpaca)",
-      "approach": "Profit Maximizer"
-    },
-    {
-      "symbol": "GOOGL",
-      "entry_time": "2026-05-14T17:33:00+00:00",
-      "exit_time": "2026-05-14T19:30:00+00:00",
-      "entry_price": 400.68,
-      "exit_price": 400.96,
-      "qty": 84,
-      "pnl": 23.52,
-      "exit_reason": "EOD close (recovered from Alpaca)",
-      "approach": "Profit Maximizer"
-    },
-    {
-      "symbol": "AMD",
-      "entry_time": "2026-05-14T17:33:00+00:00",
-      "exit_time": "2026-05-14T19:30:00+00:00",
-      "entry_price": 445.3,
-      "exit_price": 450.24,
-      "qty": 77,
-      "pnl": 380.38,
-      "exit_reason": "EOD close (recovered from Alpaca)",
-      "approach": "Profit Maximizer"
-    },
-    {
-      "symbol": "AMAT",
-      "entry_time": "2026-05-14T17:33:00+00:00",
-      "exit_time": "2026-05-14T19:30:00+00:00",
-      "entry_price": 443.91,
-      "exit_price": 444.25,
-      "qty": 107,
-      "pnl": 36.38,
-      "exit_reason": "EOD close (recovered from Alpaca)",
-      "approach": "Profit Maximizer"
     }
   ],
   "snapshots": [
-    {
-      "timestamp": "2026-05-13T14:37:47.033918+00:00",
-      "portfolio_value": 1027504.11,
-      "cash": 1027504.11,
-      "open_positions": 2,
-      "daily_pnl": 0.0,
-      "total_pnl": -1277.33,
-      "drawdown": 0.0581
-    },
-    {
-      "timestamp": "2026-05-13T14:39:52.457960+00:00",
-      "portfolio_value": 1027347.75,
-      "cash": 1027347.75,
-      "open_positions": 2,
-      "daily_pnl": 0.0,
-      "total_pnl": -1277.33,
-      "drawdown": 0.0582
-    },
     {
       "timestamp": "2026-05-13T14:42:00.011580+00:00",
       "portfolio_value": 1027375.26,
@@ -2942,7 +2867,24 @@
       "daily_pnl": 0.0,
       "total_pnl": 3606.88,
       "drawdown": 0.0576
+    },
+    {
+      "timestamp": "2026-05-15T03:18:14.315053+00:00",
+      "portfolio_value": 1028000.15,
+      "cash": 1028000.15,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 4171.7,
+      "drawdown": 0.0576
+    },
+    {
+      "timestamp": "2026-05-15T03:18:19.929780+00:00",
+      "portfolio_value": 1028000.15,
+      "cash": 1028000.15,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 4171.7,
+      "drawdown": 0.0576
     }
-  ],
-  "total_pnl": 29333.669999999966
+  ]
 }
