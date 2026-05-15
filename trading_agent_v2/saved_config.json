@@ -57,7 +57,8 @@
     "TrendRegime",
     "TrendStrength",
     "EarningsMomentum",
-    "Fibonacci"
+    "Fibonacci",
+    "IntradayVWAP"
   ],
   "decision_logging": true,
   "max_trades_per_day": 9999,

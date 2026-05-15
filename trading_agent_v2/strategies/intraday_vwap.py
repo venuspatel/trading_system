@@ -110,54 +110,123 @@ class IntradayVWAPStrategy(BaseStrategy):
         # ── VWAP distance ─────────────────────────────────────────────
         vwap_dist = (price - vwap) / vwap if vwap > 0 else 0.0
 
-        # ── Signal logic ──────────────────────────────────────────────
-        vwap_cross_up = prev <= vwap_prev and price > vwap   # just crossed above
-        above_vwap    = price > vwap
-        vwap_rising   = vwap > vwap_prev                      # VWAP itself trending up
-        or_breakout   = price > or_high and len(high) > 2     # breaking opening range
+        # Fix 10: VWAP reclaim + 2-bar confirmation + ATR stops
 
-        # BUY conditions
-        if vwap_cross_up and vol_ratio >= self.vwap_cross_min_vol:
+        # ── ATR for adaptive stops ────────────────────────────────────
+        try:
+            hi_d, lo_d, cl_d = daily_df["high"], daily_df["low"], daily_df["close"]
+            tr_d  = pd.concat([hi_d-lo_d, (hi_d-cl_d.shift(1)).abs(),
+                               (lo_d-cl_d.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr_d.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        # ── Signal logic ──────────────────────────────────────────────
+        vwap_cross_up = prev <= vwap_prev and price > vwap
+        above_vwap    = price > vwap
+        vwap_rising   = vwap > vwap_prev
+        or_breakout   = price > or_high and len(high) > 2
+
+        # Fix 10a: 2-bar confirmation — need 2 consecutive closes above VWAP
+        # Single bar above VWAP is noise, 2 bars = confirmed hold
+        if len(close) >= 3:
+            two_bar_confirm = (float(close.iloc[-1]) > float(vwap_series.iloc[-1]) and
+                               float(close.iloc[-2]) > float(vwap_series.iloc[-2]))
+        else:
+            two_bar_confirm = above_vwap
+
+        # Fix 10b: VWAP reclaim pattern — strongest VWAP signal
+        # Price dips below VWAP then reclaims it = institutions defending VWAP
+        if len(close) >= 4:
+            dipped_below = any(float(close.iloc[i]) < float(vwap_series.iloc[i])
+                               for i in range(-3, -1))
+            vwap_reclaim = dipped_below and price > vwap and vwap_rising
+        else:
+            vwap_reclaim = False
+
+        # ── BUY: VWAP reclaim (strongest signal) ─────────────────────
+        if vwap_reclaim and vol_ratio >= self.vwap_cross_min_vol:
             if abs(vwap_dist) > self.max_vwap_distance:
-                return self._hold(symbol, daily_df, f"VWAP cross but too extended ({vwap_dist:+.1%} from VWAP)")
-            confidence = min(0.95, 0.7 + (vol_ratio - 1.3) * 0.15)
+                return self._hold(symbol, daily_df,
+                    f"VWAP reclaim but too extended ({vwap_dist:+.1%})")
+            stop = price - (1.5 * atr14)
+            tp   = price + (3.0 * atr14)
+            confidence = min(0.92, 0.78 + (vol_ratio - 1.3) * 0.10)
             return TradeSignal(
                 symbol     = symbol,
                 timestamp  = timestamp,
                 action     = TradeAction.BUY,
                 confidence = round(confidence, 3),
-                reason     = f"VWAP cross ↑ price={price:.2f} VWAP={vwap:.2f} vol={vol_ratio:.1f}x",
+                reason     = (f"VWAP reclaim ↑ price={price:.2f} VWAP={vwap:.2f} "
+                              f"vol={vol_ratio:.1f}x (institutions defending VWAP)"),
                 strategy   = self.name,
-                price      = price,
+                stop_loss  = round(stop, 2),
+                take_profit= round(tp, 2),
+                details    = {"vwap": round(vwap,2), "vwap_dist": round(vwap_dist,4),
+                              "vol_ratio": round(vol_ratio,2), "signal": "reclaim"},
             )
 
-        # BUY — opening range breakout above VWAP
-        if or_breakout and above_vwap and vwap_rising and vol_ratio >= self.vwap_cross_min_vol:
+        # ── BUY: fresh VWAP cross with 2-bar confirmation ────────────
+        if vwap_cross_up and two_bar_confirm and vol_ratio >= self.vwap_cross_min_vol:
             if abs(vwap_dist) > self.max_vwap_distance:
-                return self._hold(symbol, daily_df, f"OR breakout but too extended ({vwap_dist:+.1%})")
+                return self._hold(symbol, daily_df,
+                    f"VWAP cross but too extended ({vwap_dist:+.1%})")
+            stop = price - (1.5 * atr14)
+            tp   = price + (3.0 * atr14)
+            confidence = min(0.90, 0.70 + (vol_ratio - 1.3) * 0.12)
             return TradeSignal(
                 symbol     = symbol,
                 timestamp  = timestamp,
                 action     = TradeAction.BUY,
-                confidence = 0.75,
-                reason     = f"OR breakout + above VWAP={vwap:.2f} vol={vol_ratio:.1f}x",
+                confidence = round(confidence, 3),
+                reason     = (f"VWAP cross ↑ confirmed price={price:.2f} "
+                              f"VWAP={vwap:.2f} vol={vol_ratio:.1f}x (2-bar)"),
                 strategy   = self.name,
-                price      = price,
+                stop_loss  = round(stop, 2),
+                take_profit= round(tp, 2),
+                details    = {"vwap": round(vwap,2), "vwap_dist": round(vwap_dist,4),
+                              "vol_ratio": round(vol_ratio,2), "signal": "cross"},
             )
 
-        # SELL — price dropped below VWAP (exit signal for open longs)
-        if not above_vwap and prev > vwap_prev:  # just crossed below
+        # ── BUY: OR breakout above VWAP ───────────────────────────────
+        if or_breakout and above_vwap and vwap_rising and vol_ratio >= self.vwap_cross_min_vol:
+            if abs(vwap_dist) > self.max_vwap_distance:
+                return self._hold(symbol, daily_df,
+                    f"OR breakout too extended ({vwap_dist:+.1%})")
+            stop = price - (1.5 * atr14)
+            tp   = price + (2.0 * atr14)
+            return TradeSignal(
+                symbol     = symbol,
+                timestamp  = timestamp,
+                action     = TradeAction.BUY,
+                confidence = 0.74,
+                reason     = (f"OR breakout + VWAP={vwap:.2f} vol={vol_ratio:.1f}x "
+                              f"dist={vwap_dist:+.1%}"),
+                strategy   = self.name,
+                stop_loss  = round(stop, 2),
+                take_profit= round(tp, 2),
+                details    = {"vwap": round(vwap,2), "or_high": round(or_high,2),
+                              "signal": "or_breakout"},
+            )
+
+        # ── SELL: price dropped below VWAP ────────────────────────────
+        if not above_vwap and prev > vwap_prev:
+            stop = price + (1.5 * atr14)
+            tp   = price - (2.0 * atr14)
             return TradeSignal(
                 symbol     = symbol,
                 timestamp  = timestamp,
                 action     = TradeAction.SELL,
-                confidence = 0.7,
-                reason     = f"VWAP cross ↓ price={price:.2f} VWAP={vwap:.2f} — exit",
+                confidence = 0.68,
+                reason     = f"VWAP cross ↓ price={price:.2f} VWAP={vwap:.2f}",
                 strategy   = self.name,
-                price      = price,
+                stop_loss  = round(stop, 2),
+                take_profit= round(tp, 2),
+                details    = {"vwap": round(vwap,2), "signal": "cross_down"},
             )
 
         return self._hold(
             symbol, daily_df,
-            f"VWAP={vwap:.2f} price={price:.2f} dist={vwap_dist:+.1%} vol={vol_ratio:.1f}x"
+            f"VWAP={vwap:.2f} price={price:.2f} dist={vwap_dist:+.1%} "
+            f"vol={vol_ratio:.1f}x 2bar={two_bar_confirm}"
         )
