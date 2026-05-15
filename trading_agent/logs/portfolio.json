@@ -1096,6 +1096,50 @@
       "exit_reason": "Momentum weakened: conviction dropped fr",
       "strategy": "",
       "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "NVDA",
+      "entry_time": "2026-05-14T17:33:00+00:00",
+      "exit_time": "2026-05-14T19:30:00+00:00",
+      "entry_price": 234.11,
+      "exit_price": 235.68,
+      "qty": 213,
+      "pnl": 334.41,
+      "exit_reason": "EOD close (recovered from Alpaca)",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "GOOGL",
+      "entry_time": "2026-05-14T17:33:00+00:00",
+      "exit_time": "2026-05-14T19:30:00+00:00",
+      "entry_price": 400.68,
+      "exit_price": 400.96,
+      "qty": 84,
+      "pnl": 23.52,
+      "exit_reason": "EOD close (recovered from Alpaca)",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "AMD",
+      "entry_time": "2026-05-14T17:33:00+00:00",
+      "exit_time": "2026-05-14T19:30:00+00:00",
+      "entry_price": 445.3,
+      "exit_price": 450.24,
+      "qty": 77,
+      "pnl": 380.38,
+      "exit_reason": "EOD close (recovered from Alpaca)",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "AMAT",
+      "entry_time": "2026-05-14T17:33:00+00:00",
+      "exit_time": "2026-05-14T19:30:00+00:00",
+      "entry_price": 443.91,
+      "exit_price": 444.25,
+      "qty": 107,
+      "pnl": 36.38,
+      "exit_reason": "EOD close (recovered from Alpaca)",
+      "approach": "Profit Maximizer"
     }
   ],
   "snapshots": [
@@ -2899,5 +2943,6 @@
       "total_pnl": 3606.88,
       "drawdown": 0.0576
     }
-  ]
+  ],
+  "total_pnl": 29333.669999999966
 }
