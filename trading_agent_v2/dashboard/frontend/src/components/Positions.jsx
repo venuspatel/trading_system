@@ -1,7 +1,7 @@
 import { useTheme } from "./ThemeContext";
 export default function Positions({ state }) {
   const { theme: T, compact } = useTheme();
-  const positions = state?.positions||{};
+  const positions = state?.open_positions || state?.positions || {};
   const account   = state?.account||{};
   const fmt$ = v => v!=null?`$${Number(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"—";
   const p = compact?12:16;
@@ -17,7 +17,7 @@ export default function Positions({ state }) {
         ))}
       </div>
       <div style={{background:T.cardBg,border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>
-        <div style={{display:"grid",gridTemplateColumns:"80px 1fr 1fr 1fr 1fr 100px 100px",padding:"8px 14px",borderBottom:`1px solid ${T.border}`,background:T.bg3}}>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(60px,80px) 1fr 1fr 1fr 1fr minmax(80px,10%) minmax(80px,10%)",padding:"8px 14px",borderBottom:`1px solid ${T.border}`,background:T.bg3}}>
           {["Symbol","Qty","Entry","Current","P&L","Stop","Target"].map(h=>(
             <div key={h} style={{fontSize:10,color:T.textMuted,textTransform:"uppercase",letterSpacing:".05em"}}>{h}</div>
           ))}
@@ -25,7 +25,7 @@ export default function Positions({ state }) {
         {Object.keys(positions).length===0
           ? <div style={{padding:"24px 14px",fontSize:13,color:T.textMuted,textAlign:"center"}}>No open positions</div>
           : Object.entries(positions).map(([sym,pos])=>(
-            <div key={sym} style={{display:"grid",gridTemplateColumns:"80px 1fr 1fr 1fr 1fr 100px 100px",padding:"10px 14px",borderBottom:`1px solid ${T.borderSub}`,alignItems:"center"}}>
+            <div key={sym} style={{display:"grid",gridTemplateColumns:"minmax(60px,80px) 1fr 1fr 1fr 1fr minmax(80px,10%) minmax(80px,10%)",padding:"10px 14px",borderBottom:`1px solid ${T.borderSub}`,alignItems:"center"}}>
               <div style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{sym}</div>
               <div style={{fontSize:12,color:T.textSecondary,fontVariantNumeric:"tabular-nums"}}>{pos.qty}</div>
               <div style={{fontSize:12,color:T.textSecondary,fontVariantNumeric:"tabular-nums"}}>{fmt$(pos.entry_price)}</div>

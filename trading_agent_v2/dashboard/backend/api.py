@@ -23,7 +23,7 @@ import asyncio, json, logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -44,6 +44,50 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(me
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TradeAgent Dashboard", version="1.0")
+
+
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "TradeAgent V1"}
+
+# ── Push notification support ──
+_push_tokens: set = set()
+
+@app.post("/api/notify/register")
+async def register_push_token(request: Request):
+    try:
+        body  = await request.json()
+        token = body.get("token", "")
+        if token:
+            _push_tokens.add(token)
+            logger.info(f"[Notify] Registered token: {token[:20]}...")
+            return {"status": "registered", "tokens": len(_push_tokens)}
+        return {"status": "error", "message": "no token"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/notify/send")
+async def send_notification(request: Request):
+    try:
+        body    = await request.json()
+        title   = body.get("title", "TradeAgent")
+        message = body.get("message", "")
+        if _push_tokens:
+            import httpx
+            messages = [{"to": t, "title": title, "body": message, "sound": "default"}
+                       for t in _push_tokens]
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    "https://exp.host/--/api/v2/push/send",
+                    json=messages, timeout=5
+                )
+            logger.info(f"[Notify] Sent to {len(_push_tokens)} devices: {title}")
+            return {"status": "sent", "devices": len(_push_tokens)}
+        return {"status": "no_tokens", "message": "No devices registered"}
+    except Exception as e:
+        logger.warning(f"[Notify] Send failed: {e}")
+        return {"status": "error", "message": str(e)}
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 @app.on_event("startup")
@@ -134,6 +178,11 @@ def _load_config_from_disk() -> "Optional[AgentConfig]":
             if attr in data:
                 try: setattr(cfg, attr, data[attr])
                 except Exception: pass
+        # Restore feature_flags — merge saved flags on top of preset defaults
+        if "feature_flags" in data and data["feature_flags"]:
+            existing = cfg.feature_flags or {}
+            existing.update(data["feature_flags"])
+            cfg.feature_flags = existing
         import logging; logging.getLogger(__name__).info(f"[API] Config restored: {approach}")
         return cfg
     except Exception as e:
@@ -174,6 +223,7 @@ class ConfigPayload(BaseModel):
     daily_loss_limit_pct: float = 3.0
     min_strategies_agree: int = 3
     confidence_threshold: float = 0.65
+    min_conviction_score: float = 2.0
     paper_trading: bool = True
     market_hours_only: bool = True
     earnings_blackout_days: int = 3
@@ -189,6 +239,7 @@ class ConfigPayload(BaseModel):
     cooldown_minutes:        int   = 60
     profit_lock_pct:         float = 3.0
     weekly_loss_limit_pct:   float = 8.0
+    feature_flags: dict = None   # e.g. {"trail_activation": true, ...}
 
 def _build_config(p: ConfigPayload) -> AgentConfig:
     cfg = AgentConfig()
@@ -210,6 +261,7 @@ def _build_config(p: ConfigPayload) -> AgentConfig:
     cfg.daily_loss_limit_pct = p.daily_loss_limit_pct / 100
     cfg.min_strategies_agree = p.min_strategies_agree
     cfg.confidence_threshold = p.confidence_threshold
+    cfg.min_conviction_score = p.min_conviction_score
 
     # Sanity guard: take_profit must always be > stop_loss (basic risk management)
     if cfg.take_profit_pct <= cfg.stop_loss_pct:
@@ -236,8 +288,14 @@ def _build_config(p: ConfigPayload) -> AgentConfig:
     if hasattr(p, 'trailing_stop'):    cfg.trailing_stop    = p.trailing_stop
     if hasattr(p, 'candle_exit'):      cfg.candle_exit      = p.candle_exit
     if hasattr(p, 'momentum_exit'):    cfg.momentum_exit    = p.momentum_exit
+
+    # Apply feature flags — merge with existing defaults so unset flags stay OFF
+    if p.feature_flags:
+        existing = cfg.feature_flags or {}
+        existing.update(p.feature_flags)
+        cfg.feature_flags = existing
     if hasattr(p, 'max_hold_days'):    cfg.max_hold_days    = p.max_hold_days
-    if hasattr(p, 'scan_frequency_minutes'): cfg.scan_frequency_minutes = p.scan_frequency_minutes
+    if hasattr(p, 'scan_frequency_minutes'): cfg.scan_frequency_minutes = p.scan_frequency_minutes; cfg.intraday_interval_min = p.scan_frequency_minutes; cfg.intraday_mode = True
     if hasattr(p, 'max_trades_per_day'):     cfg.max_trades_per_day     = p.max_trades_per_day
     if hasattr(p, 'max_consecutive_losses'): cfg.max_consecutive_losses = p.max_consecutive_losses
     if hasattr(p, 'cooldown_minutes'):       cfg.cooldown_minutes       = p.cooldown_minutes
@@ -416,6 +474,132 @@ async def search_tickers(q: str = "", limit: int = 10):
     exact = [{"symbol":s,"name":n,"exchange":e} for s,n,e in LOCAL if s.startswith(q)]
     names = [{"symbol":s,"name":n,"exchange":e} for s,n,e in LOCAL if q in n.upper() and not s.startswith(q)]
     return {"results": (exact+names)[:limit], "source": "local"}
+
+@app.get("/api/champion")
+async def get_champion():
+    """Return champion eval status + current champion config."""
+    import json as _json, os as _os
+    BASE_DIR = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", ".."))
+    eval_path  = _os.path.join(BASE_DIR, "logs", "champion_eval.json")
+    champ_path = _os.path.join(BASE_DIR, "logs", "pm_champion.json")
+    prev_path  = _os.path.join(BASE_DIR, "logs", "pm_champion_prev.json")
+
+    eval_data  = {}
+    champ_data = {}
+    prev_data  = {}
+
+    if _os.path.exists(eval_path):
+        with open(eval_path) as f:
+            eval_data = _json.load(f)
+    if _os.path.exists(champ_path):
+        with open(champ_path) as f:
+            champ_data = _json.load(f)
+    if _os.path.exists(prev_path):
+        with open(prev_path) as f:
+            prev_data = _json.load(f)
+
+    return {
+        "eval":     eval_data,
+        "champion": champ_data,
+        "previous": prev_data,
+        "has_champion": bool(champ_data),
+        "promote_ready": eval_data.get("promote_ready", False),
+    }
+
+
+@app.post("/api/promote")
+async def promote_champion():
+    """
+    Promote current saved_config.json to pm_champion.json.
+    Backs up existing champion to pm_champion_prev.json first.
+    Called manually from dashboard when user clicks 'Promote to Default'.
+    """
+    import json as _json, os as _os, shutil
+    BASE_DIR   = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", ".."))
+    saved_path = _os.path.join(BASE_DIR, "saved_config.json")
+    champ_path = _os.path.join(BASE_DIR, "logs", "pm_champion.json")
+    prev_path  = _os.path.join(BASE_DIR, "logs", "pm_champion_prev.json")
+    eval_path  = _os.path.join(BASE_DIR, "logs", "champion_eval.json")
+
+    try:
+        # Load current saved config
+        with open(saved_path) as f:
+            saved = _json.load(f)
+
+        # Load eval data for performance stats
+        eval_data = {}
+        if _os.path.exists(eval_path):
+            with open(eval_path) as f:
+                eval_data = _json.load(f)
+
+        # Backup existing champion
+        if _os.path.exists(champ_path):
+            shutil.copy2(champ_path, prev_path)
+
+        # Write new champion
+        champion = {
+            "promoted_at":   datetime.now(timezone.utc).isoformat(),
+            "promoted_from": "saved_config.json",
+            "performance":   eval_data.get("today", {}),
+            "history":       eval_data.get("history", []),
+            "consecutive":   eval_data.get("consecutive", 0),
+            "config":        saved,
+        }
+        _os.makedirs(_os.path.dirname(champ_path), exist_ok=True)
+        with open(champ_path, 'w') as f:
+            _json.dump(champion, f, indent=2)
+
+        import logging
+        logging.getLogger(__name__).info(
+            f"[Champion] 🏆 Promoted to champion: "
+            f"win={eval_data.get('today',{}).get('win_rate',0):.0%} "
+            f"pnl=${eval_data.get('today',{}).get('day_pnl',0):+.0f}"
+        )
+        return {"status": "promoted", "champion": champion}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/revert")
+async def revert_champion():
+    """
+    Revert to previous champion config.
+    Copies pm_champion_prev.json → saved_config.json and reconfigures agent.
+    """
+    import json as _json, os as _os
+    BASE_DIR   = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", ".."))
+    saved_path = _os.path.join(BASE_DIR, "saved_config.json")
+    prev_path  = _os.path.join(BASE_DIR, "logs", "pm_champion_prev.json")
+
+    if not _os.path.exists(prev_path):
+        return {"status": "error", "message": "No previous champion to revert to"}
+
+    try:
+        with open(prev_path) as f:
+            prev = _json.load(f)
+
+        prev_config = prev.get("config", {})
+        if not prev_config:
+            return {"status": "error", "message": "Previous champion has no config"}
+
+        # Write back to saved_config.json
+        with open(saved_path, 'w') as f:
+            _json.dump(prev_config, f, indent=2)
+
+        # Reconfigure live agent
+        if _agent:
+            cfg = _load_config_from_disk()
+            if cfg:
+                _agent.reconfigure(cfg)
+
+        import logging
+        logging.getLogger(__name__).info("[Champion] Reverted to previous champion config")
+        return {"status": "reverted", "config": prev_config}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 @app.get("/api/health")
 def health(): return {"status": "ok", "time": datetime.now(timezone.utc).isoformat()}
@@ -639,6 +823,7 @@ def get_state():
         "reporting":       _build_reporting_stats(live_portfolio.stats, _agent),
             "ticker_cooldowns":_agent._ticker_cd.get_status() if _agent and hasattr(_agent,'_ticker_cd') else {},
         "equity_curve":    live_portfolio.equity_curve,
+        "synthetic_curve": live_portfolio.synthetic_curve,
         "recent_trades":   live_portfolio.recent_trades,
             "all_trades":      live_portfolio.all_trades,
             "trade_count":     live_portfolio.trade_count,
@@ -658,6 +843,16 @@ def get_state():
         "news_sentiment":  _news_cache,
         "discipline":      _agent.discipline_status() if _agent and hasattr(_agent, 'discipline_status') else {},
         "conviction_breakdown": _agent.last_conviction_breakdown() if _agent and hasattr(_agent, 'last_conviction_breakdown') else {},
+        "ai_reviewer": (
+            _agent._dec_engine.reviewer.status_dict
+            if _agent and hasattr(_agent, '_dec_engine') and hasattr(_agent._dec_engine, 'reviewer') and _agent._dec_engine.reviewer
+            else {"enabled": False, "status": "not_configured", "calls_succeeded": 0, "calls_failed": 0, "last_error": "", "model": ""}
+        ),
+        "ai_reviewer": (
+            _agent._dec_engine.reviewer.status_dict
+            if _agent and hasattr(_agent, '_dec_engine') and hasattr(_agent._dec_engine, 'reviewer') and _agent._dec_engine.reviewer
+            else {"enabled": False, "status": "not_configured", "calls_succeeded": 0, "calls_failed": 0, "last_error": "", "model": ""}
+        ),
     }
 
 @app.post("/api/configure")
@@ -727,7 +922,7 @@ async def start_agent():
         except Exception as _e:
             logger.warning(f"[API] Intraday auto-on failed: {_e}")
     _th.Thread(target=_auto_intraday, daemon=True).start()
-    _save_config_to_disk(_config)  # persist on every Start — creates file on first run
+    if not os.path.exists(SAVE_PATH): _save_config_to_disk(_config)  # only create file if missing — never overwrite on start
     await ws_manager.broadcast({"type": "status", "status": "running"})
     return {"status": "started"}
 
@@ -912,10 +1107,14 @@ def apply_scan_results(body: dict):
 
 @app.get("/api/performance")
 def get_performance():
-    report = _analyzer.analyze(_portfolio._trades, _portfolio._snapshots, _portfolio._starting_value or 100000)
-    ranks  = _ranker.rank(_portfolio._trades) if _portfolio._trades else []
-    live_p = (getattr(_agent, "_portfolio", None) or _portfolio) if _agent else _portfolio
-    return {"report": vars(report), "rankings": [vars(r) for r in ranks], "trades": live_p.all_trades, "equity": live_p.equity_curve}
+    try:
+        live_p = (getattr(_agent, "_portfolio", None) or _portfolio) if _agent else _portfolio
+        report = _analyzer.analyze(live_p._trades, live_p._snapshots, live_p._starting_value or 100000)
+        ranks  = _ranker.rank(live_p._trades) if live_p._trades else []
+        return {"report": vars(report), "rankings": [vars(r) for r in ranks], "trades": live_p.all_trades, "equity": live_p.equity_curve}
+    except Exception as e:
+        logger.error(f"[Performance] Error: {e}")
+        return {"report": {}, "rankings": [], "trades": [], "equity": []}
 
 @app.get("/api/news")
 def get_news(symbol: str = ""):
@@ -1007,3 +1206,33 @@ if os.path.exists(frontend_build):
     app.mount("/static", StaticFiles(directory=os.path.join(frontend_build, "static")), name="static")
     @app.get("/{full_path:path}")
     def serve_react(full_path: str): return FileResponse(os.path.join(frontend_build, "index.html"))
+
+# ── DEV: file reader endpoint (Claude access) ──────────────────────────
+@app.get("/api/dev/file")
+async def read_file(path: str):
+    """Read any file relative to trading_agent root. Dev use only."""
+    import os
+    base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    full = os.path.abspath(os.path.join(base, path))
+    if not full.startswith(base):
+        return {"error": "path outside project"}
+    try:
+        with open(full) as f:
+            return {"path": path, "content": f.read()}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/dev/write")
+async def write_file(payload: dict):
+    """Write content to a file relative to trading_agent root. Dev use only."""
+    import os
+    base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    full = os.path.abspath(os.path.join(base, payload.get("path", "")))
+    if not full.startswith(base):
+        return {"error": "path outside project"}
+    try:
+        with open(full, "w") as f:
+            f.write(payload.get("content", ""))
+        return {"ok": True, "path": payload["path"]}
+    except Exception as e:
+        return {"error": str(e)}

@@ -291,6 +291,10 @@ class PerformanceAnalyzer:
     @staticmethod
     def _parse_dt(dt_str: str) -> datetime:
         try:
-            return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+            # Always return timezone-aware — treat naive as UTC
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
         except Exception:
             return datetime.now(timezone.utc)

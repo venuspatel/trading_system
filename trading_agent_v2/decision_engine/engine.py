@@ -126,6 +126,7 @@ class DecisionEngine:
         open_positions:  Dict[str, dict],
         portfolio_value: float,
         spy_week_change: float = 0.0,
+        market_regime:  str   = 'UNKNOWN',
     ):
         """Update live portfolio state before each scan cycle."""
         self._daily_pnl      = daily_pnl
@@ -139,6 +140,7 @@ class DecisionEngine:
             portfolio_risk  = self._portfolio_risk,
             portfolio_value = portfolio_value,
             spy_week_change = spy_week_change,
+            market_regime   = market_regime,
         )
 
     # ------------------------------------------------------------------
@@ -414,6 +416,30 @@ class DecisionEngine:
             decision.ai_suggestion = verdict.suggestion
             decision.ai_used       = verdict.used_ai
             return decision
+
+        # --- AI Confidence-Based Position Sizing ---
+        # Scale position size by AI confidence so high-confidence trades get full size
+        # and borderline approvals (just above 0.60 veto threshold) get reduced size.
+        if verdict.used_ai and verdict.approved:
+            ai_conf = verdict.confidence
+            if ai_conf >= 0.85:
+                size_scale = 1.0          # full size — AI very confident
+            elif ai_conf >= 0.75:
+                size_scale = 0.75         # 75% size — AI confident
+            elif ai_conf >= 0.65:
+                size_scale = 0.50         # 50% size — AI borderline
+            else:
+                size_scale = 0.35         # 35% size — AI barely approved
+            if size_scale < 1.0:
+                original_shares = position.shares
+                position.shares       = max(1, int(position.shares * size_scale))
+                position.dollar_amount = position.shares * price
+                logger.info(
+                    f"[Engine] {symbol} AI confidence {ai_conf:.0%} → "
+                    f"size scaled {size_scale:.0%}: "
+                    f"{original_shares} → {position.shares} shares "
+                    f"(${position.dollar_amount:,.0f})"
+                )
 
         # --- All gates passed: TRADE ---
         decision = self._make_decision(

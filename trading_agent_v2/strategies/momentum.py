@@ -74,7 +74,7 @@ class MomentumStrategy(BaseStrategy):
 
         # BUY logic — includes rally override for RSI 80-88 with volume confirmation
         vol_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
-        rally_override = (80 < rsi_val <= 95 and above_sma20 and above_sma50 and vol_ratio >= 1.3)
+        rally_override = (80 < rsi_val <= 95 and above_sma20 and above_sma50 and vol_ratio >= 0.8)  # Fix 2b: lowered from 1.3x to capture sympathy rallies
 
         if rally_override:
             # Strong rally — RSI overbought but volume confirms institutional buying
@@ -82,10 +82,9 @@ class MomentumStrategy(BaseStrategy):
                 symbol     = symbol,
                 timestamp  = timestamp,
                 action     = TradeAction.BUY,
-                confidence = 0.6,  # lower confidence — momentum is stretched
+                confidence = 0.6,
                 reason     = f"Rally override: RSI={rsi_val:.1f} but vol={vol_ratio:.1f}x avg — momentum breakout",
                 strategy   = self.name,
-                price      = price,
             )
 
         if (above_sma20 and above_sma50 and

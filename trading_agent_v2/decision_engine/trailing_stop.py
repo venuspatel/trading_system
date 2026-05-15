@@ -180,13 +180,43 @@ class TrailingStopManager:
                 state.peak_price = price
                 # Move trailing stop up
                 if self.config.trailing_stop:
-                    new_stop = price * (1 - self.config.trailing_stop_pct)
-                    if new_stop > state.current_stop:
-                        old_stop = state.current_stop
-                        state.current_stop = new_stop
+                    # ── [TrailFlag5] Activation threshold ─────────────────
+                    # Flag: trail_activation (default OFF)
+                    # When ON:  trail only starts after price moves +0.5%
+                    #           from entry. Fixed stop holds until then.
+                    #           Prevents wick-noise from firing the trail
+                    #           before the move has developed.
+                    # When OFF: trail starts immediately (original behavior)
+                    _flag_active = (
+                        hasattr(self.config, 'flag') and
+                        self.config.flag('trail_activation')
+                    )
+                    ACTIVATION_PCT = 0.005   # +0.5% from entry before trailing
+
+                    if _flag_active:
+                        _gain_from_entry = (
+                            (price - state.entry_price) / state.entry_price
+                            if state.entry_price > 0 else 0
+                        )
+                        _trail_armed = _gain_from_entry >= ACTIVATION_PCT
+                    else:
+                        _trail_armed = True   # original behavior — always trail
+
+                    if _trail_armed:
+                        new_stop = price * (1 - self.config.trailing_stop_pct)
+                        if new_stop > state.current_stop:
+                            old_stop = state.current_stop
+                            state.current_stop = new_stop
+                            logger.debug(
+                                f"[TrailingStop] {symbol} peak=${price:.2f} → "
+                                f"stop moved ${old_stop:.2f} → ${new_stop:.2f}"
+                                + (" [trail armed]" if _flag_active else "")
+                            )
+                    else:
                         logger.debug(
-                            f"[TrailingStop] {symbol} peak=${price:.2f} → "
-                            f"stop moved ${old_stop:.2f} → ${new_stop:.2f}"
+                            f"[TrailFlag5] {symbol} trail not yet armed — "
+                            f"gain={(_gain_from_entry*100):.2f}% < {ACTIVATION_PCT*100:.1f}% "
+                            f"activation. Fixed stop at ${state.current_stop:.2f}"
                         )
 
             # --- Check exits ---

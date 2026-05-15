@@ -195,9 +195,8 @@ class StrategyEngine:
     MODE_ROLES = {
         "Conservative":     {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
         "Balanced":         {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
-        "Aggressive":       {StrategyRole.NEUTRAL, StrategyRole.TREND},
-        "Profit Maximizer": {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY},
-        "Micro Momentum":  {StrategyRole.INTRADAY, StrategyRole.NEUTRAL, StrategyRole.TREND},  # scalp + trend confirmation
+                "Profit Maximizer": {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY},
+        "Micro Momentum":  {StrategyRole.INTRADAY},  # scalp only — fast in/out
         "Aggressive":       {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY},
         "Long Term":        {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
     }

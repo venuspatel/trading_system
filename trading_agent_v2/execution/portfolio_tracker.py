@@ -92,6 +92,8 @@ class PortfolioTracker:
         self._snapshots:       List[PortfolioSnapshot] = []
         self._peak_value:      float = 0.0
         self._starting_value:  float = 0.0
+        self._historical_pnl_offset: float = 0.0
+        self._synthetic_curve: list = []
 
         # ── Session tracking (resets every restart) ─────────────────
         self._session_start_pnl: float = 0.0   # total_pnl at session start
@@ -113,6 +115,10 @@ class PortfolioTracker:
             f"over {len(self._trades)} historical trades"
         )
 
+        # Auto-heal historical_pnl_offset against Alpaca ground truth on every startup
+        self._alpaca_key    = None  # set externally via set_alpaca_credentials()
+        self._alpaca_secret = None
+
     # ------------------------------------------------------------------
     # Recording
     # ------------------------------------------------------------------
@@ -122,6 +128,7 @@ class PortfolioTracker:
         self._check_day_rollover()
         self._trades.append(trade)
         self._session_trade_count += 1
+        self._rebuild_synthetic_curve()
         self._save()
         icon = "WIN" if trade.is_winner else "LOSS"
         logger.info(
@@ -165,6 +172,63 @@ class PortfolioTracker:
         self._save()
 
     # ------------------------------------------------------------------
+    # Champion evaluation
+    # ------------------------------------------------------------------
+
+    def daily_summary(self) -> dict:
+        """
+        Returns today's performance summary for champion evaluation.
+        Called by _evaluate_champion() in trading_agent.py at EOD.
+        """
+        from datetime import datetime, timezone, timedelta
+        ET    = timezone(timedelta(hours=-4))
+        today = datetime.now(ET).strftime('%Y-%m-%d')
+        trades = [t for t in self._trades
+                  if (t.exit_time or '').startswith(today)]
+        if not trades:
+            return {
+                'date':        today,
+                'trades':      0,
+                'win_rate':    0.0,
+                'day_pnl':     0.0,
+                'max_drawdown':0.0,
+                'qualifies':   False,
+                'reason':      'No trades today',
+            }
+        winners  = [t for t in trades if t.is_winner]
+        win_rate = len(winners) / len(trades)
+        day_pnl  = sum(t.pnl for t in trades)
+        max_dd   = max(
+            (s.drawdown for s in self._snapshots
+             if (s.timestamp or '').startswith(today)),
+            default=0.0
+        )
+        CRITERIA = {
+            'win_rate_min': 0.75,
+            'pnl_min':      300.0,
+            'drawdown_max': 0.03,
+            'trades_min':   3,
+        }
+        fails = []
+        if win_rate < CRITERIA['win_rate_min']:
+            fails.append(f"win_rate {win_rate:.0%} < {CRITERIA['win_rate_min']:.0%}")
+        if day_pnl < CRITERIA['pnl_min']:
+            fails.append(f"P&L ${day_pnl:.0f} < ${CRITERIA['pnl_min']:.0f}")
+        if max_dd > CRITERIA['drawdown_max']:
+            fails.append(f"drawdown {max_dd:.1%} > {CRITERIA['drawdown_max']:.0%}")
+        if len(trades) < CRITERIA['trades_min']:
+            fails.append(f"only {len(trades)} trades < {CRITERIA['trades_min']} min")
+        return {
+            'date':        today,
+            'trades':      len(trades),
+            'win_rate':    round(win_rate, 4),
+            'day_pnl':     round(day_pnl, 2),
+            'max_drawdown':round(max_dd, 4),
+            'qualifies':   len(fails) == 0,
+            'reason':      'All criteria met' if not fails else ' | '.join(fails),
+        }
+
+    # ------------------------------------------------------------------
     # Day rollover
     # ------------------------------------------------------------------
 
@@ -185,7 +249,7 @@ class PortfolioTracker:
         winners = [t for t in trades if t.is_winner]
         losers  = [t for t in trades if not t.is_winner]
 
-        total_closed_pnl = sum(t.pnl for t in trades)
+        total_closed_pnl = sum(t.pnl for t in trades) + self._historical_pnl_offset
         win_rate   = len(winners) / len(trades) if trades else 0
         avg_win    = sum(t.pnl for t in winners) / len(winners) if winners else 0
         avg_loss   = sum(t.pnl for t in losers)  / len(losers)  if losers  else 0
@@ -193,7 +257,7 @@ class PortfolioTracker:
         gross_loss = abs(sum(t.pnl for t in losers))
         profit_factor = (gross_win / gross_loss) if gross_loss > 0 else 0
 
-        max_dd = max((s.drawdown for s in self._snapshots), default=0)
+        max_dd = max((s.drawdown for s in self._snapshots[-200:]), default=0)
 
         best  = max(trades, key=lambda t: t.pnl, default=None)
         worst = min(trades, key=lambda t: t.pnl, default=None)
@@ -361,8 +425,34 @@ class PortfolioTracker:
     def equity_curve(self) -> List[dict]:
         return [
             {"t": s.timestamp, "v": s.portfolio_value, "dd": s.drawdown}
-            for s in self._snapshots[-200:]
+            for s in self._snapshots
         ]
+
+    @property
+    def synthetic_curve(self) -> List[dict]:
+        """Trade-based equity curve from $1M start — full history."""
+        return self._synthetic_curve
+
+    def _rebuild_synthetic_curve(self):
+        """Rebuild synthetic curve from trade history."""
+        BASE = 1_000_000.0
+        trades = sorted(
+            [t for t in self._trades if t.exit_time
+             and t.exit_reason != "Historical P&L adjustment"],
+            key=lambda t: t.exit_time
+        )
+        curve = [{"t": "2026-04-14T00:00:00+00:00", "v": BASE, "dd": 0.0}]
+        running = BASE
+        peak = BASE
+        for t in trades:
+            running += t.pnl
+            peak = max(peak, running)
+            dd = round((peak - running) / peak, 4) if peak > 0 else 0.0
+            exit_t = t.exit_time
+            if exit_t and not exit_t.endswith("Z") and "+" not in exit_t:
+                exit_t += "+00:00"
+            curve.append({"t": exit_t, "v": round(running, 2), "dd": dd})
+        self._synthetic_curve = curve
 
     # ------------------------------------------------------------------
     # Date helpers
@@ -444,6 +534,7 @@ class PortfolioTracker:
         try:
             data = {
                 "starting_value":    self._starting_value,
+                "historical_pnl_offset": self._historical_pnl_offset,
                 "peak_value":        self._peak_value,
                 "day_date":          self._day_date,
                 "day_start_pnl":     self._day_start_pnl,
@@ -455,6 +546,53 @@ class PortfolioTracker:
         except Exception as exc:
             logger.error(f"[Portfolio] Save failed: {exc}")
 
+
+    def set_alpaca_credentials(self, api_key: str, secret_key: str, paper: bool = True):
+        """
+        Call this after init with Alpaca credentials.
+        Auto-heals historical_pnl_offset to match Alpaca ground truth.
+        """
+        self._alpaca_key    = api_key
+        self._alpaca_secret = secret_key
+        self._alpaca_paper  = paper
+        self._heal_offset()
+
+    def _heal_offset(self):
+        """
+        Recalculates historical_pnl_offset so that:
+            sum(trades.pnl) + historical_pnl_offset == alpaca_true_pnl
+        Runs on every startup — keeps dashboard P&L in sync with Alpaca.
+        """
+        if not self._alpaca_key or not self._alpaca_secret:
+            return
+        try:
+            import urllib.request as _ur, json as _json
+            base = "https://paper-api.alpaca.markets" if getattr(self, "_alpaca_paper", True) else "https://api.alpaca.markets"
+            req  = _ur.Request(
+                f"{base}/v2/account",
+                headers={
+                    "APCA-API-KEY-ID":     self._alpaca_key,
+                    "APCA-API-SECRET-KEY": self._alpaca_secret,
+                }
+            )
+            acct        = _json.loads(_ur.urlopen(req, timeout=8).read())
+            true_equity = float(acct["equity"])
+            true_pnl    = true_equity - 1_000_000
+            trade_pnl   = sum(t.pnl for t in self._trades)
+            new_offset  = true_pnl - trade_pnl
+            old_offset  = self._historical_pnl_offset
+            if abs(new_offset - old_offset) > 50:  # only update if gap > $50
+                self._historical_pnl_offset = new_offset
+                self._save()
+                logger.info(
+                    f"[Portfolio] Auto-healed offset: ${old_offset:+.2f} → ${new_offset:+.2f} "
+                    f"(Alpaca equity=${true_equity:,.2f}, trade_pnl=${trade_pnl:+.2f})"
+                )
+            else:
+                logger.info(f"[Portfolio] Offset OK — gap ${abs(new_offset-old_offset):.2f} < $50 threshold")
+        except Exception as e:
+            logger.warning(f"[Portfolio] Offset heal failed: {e}")
+
     def _load(self):
         if not os.path.exists(self.data_path):
             return
@@ -465,9 +603,11 @@ class PortfolioTracker:
             self._peak_value     = data.get("peak_value", 0)
             self._day_date       = data.get("day_date", _et_date_str())
             self._day_start_pnl  = data.get("day_start_pnl", 0)
-            self._trades         = [ClosedTrade(**t) for t in data.get("trades", [])]
-            self._snapshots      = [PortfolioSnapshot(**s) for s in data.get("snapshots", [])]
+            self._trades             = [ClosedTrade(**t) for t in data.get("trades", [])]
+            self._snapshots          = [PortfolioSnapshot(**s) for s in data.get("snapshots", [])]
+            self._historical_pnl_offset = data.get("historical_pnl_offset", 0.0)
             if self._trades:
                 logger.info(f"[Portfolio] Loaded {len(self._trades)} historical trades")
+            self._rebuild_synthetic_curve()
         except Exception as exc:
             logger.warning(f"[Portfolio] Load failed: {exc}")

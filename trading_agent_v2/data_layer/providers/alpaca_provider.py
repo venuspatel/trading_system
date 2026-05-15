@@ -95,18 +95,7 @@ class AlpacaProvider(DataProvider):
             from alpaca.data.live      import StockDataStream, CryptoDataStream
             from alpaca.trading        import TradingClient
 
-            self._stock_client   = StockHistoricalDataClient(
-                self._api_key, self._secret_key,
-                raw_data=False,
-                url_override=None,
-            )
-            # Patch httpx timeout onto the underlying client
-            try:
-                import httpx as _httpx
-                if hasattr(self._stock_client, '_http_client'):
-                    self._stock_client._http_client.timeout = _httpx.Timeout(10.0)
-            except Exception:
-                pass
+            self._stock_client   = StockHistoricalDataClient(self._api_key, self._secret_key)
             self._crypto_client  = CryptoHistoricalDataClient()             # public endpoint
             self._trading_client = TradingClient(self._api_key, self._secret_key, paper=self._paper)
 
@@ -209,15 +198,9 @@ class AlpacaProvider(DataProvider):
                 req  = StockBarsRequest(symbol_or_symbols=symbol, timeframe=tf,
                                         start=start, end=end, limit=limit,
                                         adjustment="all", feed=DataFeed.IEX)
-                # Note: signal-based timeout removed — signals only work on main thread
                 data = self._stock_client.get_stock_bars(req)
 
-            # BarSet doesn't support .get() — use [] with KeyError fallback
-            try:
-                raw = data[symbol]
-            except (KeyError, TypeError):
-                raw = []
-            bars = [self._alpaca_bar_to_bar(symbol, b) for b in (raw or [])]
+            bars = [self._alpaca_bar_to_bar(symbol, b) for b in data[symbol]]
             logger.debug(f"[Alpaca] Fetched {len(bars)} bars for {symbol} ({timeframe})")
             return bars
 

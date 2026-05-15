@@ -247,9 +247,15 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
   const [expandedStrat,setExpandedStrat]= useState(null);
   const loadedRef = useRef(false);
 
+  const [flagTrailActivation,  setFlagTrailActivation]  = useState(false);
+  const [flagSectorConc,       setFlagSectorConc]        = useState(false);
+  const [flagDrawdownCB,       setFlagDrawdownCB]        = useState(false);
+  const [flagATRStops,         setFlagATRStops]          = useState(false);
+  const [flagNewsSentiment,    setFlagNewsSentiment]     = useState(false);
+
   useEffect(() => {
-    if (loadedRef.current) return;
     if (!currentConfig || Object.keys(currentConfig).length===0) return;
+    if (loadedRef.current) return;
     loadedRef.current = true;
     if (currentConfig.approach)               setApproach(currentConfig.approach);
     if (currentConfig.max_portfolio_risk_pct) setPortRisk(Math.round(currentConfig.max_portfolio_risk_pct*100));
@@ -261,6 +267,14 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
     if (currentConfig.confidence_threshold)   setConfThresh(Math.round(currentConfig.confidence_threshold*100));
     if (currentConfig.paper_trading!=null)    setPaper(currentConfig.paper_trading);
     if (currentConfig.watchlist)              setWatchlist(currentConfig.watchlist);
+    if (currentConfig.feature_flags) {
+      const ff = currentConfig.feature_flags;
+      if (ff.trail_activation         != null) setFlagTrailActivation(ff.trail_activation);
+      if (ff.sector_concentration     != null) setFlagSectorConc(ff.sector_concentration);
+      if (ff.drawdown_circuit_breaker != null) setFlagDrawdownCB(ff.drawdown_circuit_breaker);
+      if (ff.atr_trailing_stops       != null) setFlagATRStops(ff.atr_trailing_stops);
+      if (ff.news_sentiment           != null) setFlagNewsSentiment(ff.news_sentiment);
+    }
     if (currentConfig.max_trades_per_day != null) {
       if (currentConfig.max_trades_per_day >= 9999) {
         setUnlimitedTrades(true);
@@ -309,6 +323,13 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
           max_trades_per_day: unlimitedTrades ? 9999 : maxTradesDay, max_consecutive_losses:maxConsecLoss,
           cooldown_minutes:cooldownMins, profit_lock_pct:profitLockPct,
           weekly_loss_limit_pct:weeklyLossPct,
+          feature_flags:{
+            trail_activation:         flagTrailActivation,
+            sector_concentration:     flagSectorConc,
+            drawdown_circuit_breaker: flagDrawdownCB,
+            atr_trailing_stops:       flagATRStops,
+            news_sentiment:           flagNewsSentiment,
+          },
         }),
       });
       setSaved(true); onSaved?.();
@@ -540,6 +561,37 @@ export default function ConfigPanel({ api, currentConfig, onSaved }) {
             {!paper&&<div style={{marginTop:10,padding:"10px 14px",background:T.loss+"15",border:`1px solid ${T.loss}44`,borderRadius:8,fontSize:12,color:T.loss}}>
               Live mode is ON — real money will be used. Review paper trading results first.
             </div>}
+          </div>
+          <div style={card}>
+            <div style={{fontSize:12,fontWeight:500,color:T.textSecondary,marginBottom:2}}>Feature flags</div>
+            <div style={{fontSize:11,color:T.textMuted,marginBottom:10,lineHeight:1.5}}>
+              Enable one at a time. Measure win rate vs 76% baseline for 5 days before enabling the next.
+            </div>
+            <Toggle T={T}
+              label="Flag 5 — trail activation (0.5%)"
+              sub="Trail only starts after +0.5% gain from entry. Fixed stop holds until then — prevents wick-noise exits."
+              checked={flagTrailActivation} onChange={setFlagTrailActivation}/>
+            <Toggle T={T}
+              label="Flag 4 — sector concentration limit"
+              sub="Block new BUY if >40% of open positions already in same sector. Prevents correlated losses."
+              checked={flagSectorConc} onChange={setFlagSectorConc}/>
+            <Toggle T={T}
+              label="Flag 3 — drawdown circuit breaker"
+              sub="5-day rolling drawdown >3% → reduce sizing. >5% → halt new positions until recovery."
+              checked={flagDrawdownCB} onChange={setFlagDrawdownCB}/>
+            <Toggle T={T}
+              label="Flag 2 — ATR-based trailing stops"
+              sub="Replace fixed 1% trail with 2×ATR14. Adapts stop width to current volatility automatically."
+              checked={flagATRStops} onChange={setFlagATRStops}/>
+            <Toggle T={T}
+              label="Flag 1 — news sentiment → conviction"
+              sub="Wire news/sentiment.py into conviction engine. ±1.5 boost based on headlines. Build before enabling."
+              checked={flagNewsSentiment} onChange={setFlagNewsSentiment}/>
+            <div style={{marginTop:8,padding:"8px 12px",background:T.profit+"12",border:`1px solid ${T.profit}33`,borderRadius:6,fontSize:11,color:T.profit,lineHeight:1.5}}>
+              {[flagTrailActivation,flagSectorConc,flagDrawdownCB,flagATRStops,flagNewsSentiment].filter(Boolean).length === 0
+                ? "All flags OFF — baseline mode"
+                : `${[flagTrailActivation,flagSectorConc,flagDrawdownCB,flagATRStops,flagNewsSentiment].filter(Boolean).length} flag(s) active — save to apply`}
+            </div>
           </div>
         </div>
       )}

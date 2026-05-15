@@ -68,6 +68,7 @@ class RiskGuardian:
         self._open_count   = 0        # updated by DecisionEngine
         self._portfolio_risk = 0.0    # current dollars at risk
         self._portfolio_val  = 10000.0
+        self._market_regime  = 'UNKNOWN'  # updated each cycle
 
     def update_state(
         self,
@@ -76,6 +77,7 @@ class RiskGuardian:
         portfolio_risk:  float,
         portfolio_value: float,
         spy_week_change: float = 0.0,
+        market_regime:  str   = 'UNKNOWN',
     ):
         """Called before each scan cycle to update live state."""
         self._daily_pnl      = daily_pnl
@@ -83,6 +85,7 @@ class RiskGuardian:
         self._portfolio_risk = portfolio_risk
         self._portfolio_val  = portfolio_value
         self._spy_week_chg   = spy_week_change
+        self._market_regime  = market_regime
 
     def assess(
         self,
@@ -142,12 +145,13 @@ class RiskGuardian:
                 severity = "block",
             ))
 
-        # 4. Max open positions
-        pos_ok = self._open_count < cfg.max_open_positions
+        # 4. Max open positions — expand to 7 on BULL regime days
+        _effective_max = 7 if self._market_regime == 'BULL' else cfg.max_open_positions
+        pos_ok = self._open_count < _effective_max
         checks.append(RiskCheck(
             approved = pos_ok,
             rule     = "Max positions",
-            reason   = f"{self._open_count}/{cfg.max_open_positions} positions open",
+            reason   = f"{self._open_count}/{_effective_max} positions open (regime={self._market_regime})",
             severity = "block",
         ))
 

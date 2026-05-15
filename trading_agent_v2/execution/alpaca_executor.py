@@ -272,6 +272,9 @@ class AlpacaExecutor:
                     ap = alpaca_pos_map[symbol]
                     pos.current_price = float(ap.current_price)
                     pos.qty           = int(ap.qty)
+                    # Fix: update entry_price if missing
+                    if pos.entry_price == 0.0:
+                        pos.entry_price = float(ap.avg_entry_price)
                 else:
                     # Position no longer exists — stop or TP was hit
                     logger.info(

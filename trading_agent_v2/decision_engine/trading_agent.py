@@ -90,6 +90,16 @@ class TradingAgent:
         import os as _os
         _portfolio_file = _os.environ.get("PORTFOLIO_FILE", "logs/portfolio.json")
         self._portfolio    = PortfolioTracker(data_path=_portfolio_file)
+        # Auto-heal P&L offset against Alpaca ground truth on every startup
+        import os as _os2
+        _alpaca_key = _os2.getenv("ALPACA_API_KEY", _os2.getenv("APCA_API_KEY_ID", ""))
+        _alpaca_sec = _os2.getenv("ALPACA_SECRET_KEY", _os2.getenv("APCA_API_SECRET_KEY", ""))
+        if _alpaca_key and _alpaca_sec:
+            self._portfolio.set_alpaca_credentials(
+                api_key    = _alpaca_key,
+                secret_key = _alpaca_sec,
+                paper      = getattr(config, "paper_trading", True),
+            )
         self._trailing_mgr  = TrailingStopManager(config)
         self._adaptive      = AdaptiveThresholdEngine()
         # Explicitly import from decision_engine.strategy_ranker (has record_trade)
@@ -472,6 +482,9 @@ class TradingAgent:
             logger.warning(f"[Agent] Position registration failed: {ex}")
         logger.info("[Agent] Data connection established")
 
+        # Alpaca ground truth sync — injects missing trades + rebuilds ticker loss counts
+        self._sync_today_from_alpaca()
+
     def _run_loop(self):
         """Main autonomous loop — delegates timing to MarketScheduler."""
         self._scheduler.start()
@@ -482,6 +495,164 @@ class TradingAgent:
                 continue
             time.sleep(10)
         self._scheduler.stop()
+
+    def _evaluate_champion(self):
+        """
+        EOD champion evaluation — called after every trading day.
+        Checks if today's performance qualifies for champion promotion.
+        Writes evaluation to logs/champion_eval.json for dashboard to read.
+        Two consecutive qualifying days → marks config as 'promote_ready'.
+        """
+        import json, os
+        from datetime import datetime, timezone, timedelta
+
+        try:
+            summary = self._portfolio.daily_summary()
+            eval_path  = os.path.join(os.path.dirname(__file__),
+                                      '..', 'logs', 'champion_eval.json')
+            champ_path = os.path.join(os.path.dirname(__file__),
+                                      '..', 'logs', 'pm_champion.json')
+            eval_path  = os.path.abspath(eval_path)
+            champ_path = os.path.abspath(champ_path)
+
+            # Load existing eval history
+            history = []
+            if os.path.exists(eval_path):
+                try:
+                    with open(eval_path) as f:
+                        data = json.load(f)
+                        history = data.get('history', [])
+                except Exception:
+                    history = []
+
+            # Add today
+            history.append(summary)
+            history = history[-7:]  # keep last 7 days only
+
+            # Check consecutive qualifying days
+            consecutive = 0
+            for day in reversed(history):
+                if day.get('qualifies'):
+                    consecutive += 1
+                else:
+                    break
+
+            promote_ready = consecutive >= 2
+            logger.info(
+                f"[Champion] EOD eval: {summary['date']} | "
+                f"trades={summary['trades']} win={summary['win_rate']:.0%} "
+                f"pnl=${summary['day_pnl']:+.0f} dd={summary['max_drawdown']:.1%} | "
+                f"qualifies={summary['qualifies']} | "
+                f"consecutive={consecutive} | promote_ready={promote_ready}"
+            )
+
+            # Write eval file for dashboard
+            eval_data = {
+                'updated_at':     datetime.now(timezone.utc).isoformat(),
+                'today':          summary,
+                'consecutive':    consecutive,
+                'promote_ready':  promote_ready,
+                'history':        history,
+                'criteria': {
+                    'win_rate_min':  0.75,
+                    'pnl_min':       300.0,
+                    'drawdown_max':  0.03,
+                    'trades_min':    3,
+                    'days_required': 2,
+                },
+            }
+            os.makedirs(os.path.dirname(eval_path), exist_ok=True)
+            with open(eval_path, 'w') as f:
+                json.dump(eval_data, f, indent=2)
+
+            if promote_ready:
+                logger.info(
+                    f"[Champion] 🏆 Config qualifies for promotion after "
+                    f"{consecutive} consecutive days! "
+                    f"Use dashboard to promote → pm_champion.json"
+                )
+
+        except Exception as e:
+            logger.warning(f"[Champion] EOD eval failed: {e}")
+
+    def _evaluate_champion(self):
+        """
+        EOD champion evaluation — called after every trading day.
+        Checks if today's performance qualifies for champion promotion.
+        Writes evaluation to logs/champion_eval.json for dashboard to read.
+        Two consecutive qualifying days → marks config as 'promote_ready'.
+        """
+        import json, os
+        from datetime import datetime, timezone, timedelta
+
+        try:
+            summary = self._portfolio.daily_summary()
+            eval_path  = os.path.join(os.path.dirname(__file__),
+                                      '..', 'logs', 'champion_eval.json')
+            champ_path = os.path.join(os.path.dirname(__file__),
+                                      '..', 'logs', 'pm_champion.json')
+            eval_path  = os.path.abspath(eval_path)
+            champ_path = os.path.abspath(champ_path)
+
+            # Load existing eval history
+            history = []
+            if os.path.exists(eval_path):
+                try:
+                    with open(eval_path) as f:
+                        data = json.load(f)
+                        history = data.get('history', [])
+                except Exception:
+                    history = []
+
+            # Add today
+            history.append(summary)
+            history = history[-7:]  # keep last 7 days only
+
+            # Check consecutive qualifying days
+            consecutive = 0
+            for day in reversed(history):
+                if day.get('qualifies'):
+                    consecutive += 1
+                else:
+                    break
+
+            promote_ready = consecutive >= 2
+            logger.info(
+                f"[Champion] EOD eval: {summary['date']} | "
+                f"trades={summary['trades']} win={summary['win_rate']:.0%} "
+                f"pnl=${summary['day_pnl']:+.0f} dd={summary['max_drawdown']:.1%} | "
+                f"qualifies={summary['qualifies']} | "
+                f"consecutive={consecutive} | promote_ready={promote_ready}"
+            )
+
+            # Write eval file for dashboard
+            eval_data = {
+                'updated_at':     datetime.now(timezone.utc).isoformat(),
+                'today':          summary,
+                'consecutive':    consecutive,
+                'promote_ready':  promote_ready,
+                'history':        history,
+                'criteria': {
+                    'win_rate_min':  0.75,
+                    'pnl_min':       300.0,
+                    'drawdown_max':  0.03,
+                    'trades_min':    3,
+                    'days_required': 2,
+                },
+            }
+            os.makedirs(os.path.dirname(eval_path), exist_ok=True)
+            with open(eval_path, 'w') as f:
+                json.dump(eval_data, f, indent=2)
+
+            if promote_ready:
+                logger.info(
+                    f"[Champion] 🏆 Config qualifies for promotion after "
+                    f"{consecutive} consecutive days! "
+                    f"Use dashboard to promote → pm_champion.json"
+                )
+
+        except Exception as e:
+            logger.warning(f"[Champion] EOD eval failed: {e}")
 
     def _scheduled_scan(self, scan_type: str = "EOD"):
         """Called by MarketScheduler at the correct market time."""
@@ -674,6 +845,126 @@ class TradingAgent:
             pass
         return 0.0  # fallback — caller uses config stop_loss_pct
 
+
+    def _sync_today_from_alpaca(self):
+        """
+        Pulls today's closed orders from Alpaca on every startup and:
+        1. Injects any missing trades into portfolio.json
+        2. Rebuilds _ticker_cd loss counts so session ban survives restarts
+        3. Fixes day P&L and trade count to be calendar-based not session-based
+        """
+        try:
+            import urllib.request as _ur, json as _json
+            from datetime import datetime, timezone, timedelta
+            from execution.portfolio_tracker import ClosedTrade
+
+            KEY = getattr(self._executor, '_api_key', '') or getattr(self._executor, 'api_key', '')
+            SEC = getattr(self._executor, '_secret_key', '') or getattr(self._executor, 'secret_key', '')
+            if not KEY or not SEC:
+                logger.warning("[SyncAlpaca] No credentials — skipping")
+                return
+
+            base = "https://paper-api.alpaca.markets" if getattr(self._executor, '_paper', True) else "https://api.alpaca.markets"
+
+            req = _ur.Request(
+                f"{base}/v2/orders?status=closed&limit=50&direction=desc",
+                headers={"APCA-API-KEY-ID": KEY, "APCA-API-SECRET-KEY": SEC}
+            )
+            orders = _json.loads(_ur.urlopen(req, timeout=8).read())
+
+            ET    = timezone(timedelta(hours=-4))
+            today = datetime.now(ET).strftime("%Y-%m-%d")
+
+            buys  = {}
+            sells = {}
+            for o in orders:
+                filled_at = (o.get("filled_at") or "")[:10]
+                if filled_at != today:
+                    continue
+                sym   = o.get("symbol","").upper()
+                price = float(o.get("filled_avg_price") or 0)
+                qty   = int(o.get("filled_qty") or 0)
+                side  = o.get("side","")
+                ts    = o.get("filled_at","")
+                if side == "buy":
+                    buys.setdefault(sym, []).append((qty, price, ts))
+                else:
+                    sells.setdefault(sym, []).append((qty, price, ts))
+
+            # Get existing today's trade symbols to avoid duplicates
+            existing = set()
+            for t in self._portfolio._trades:
+                et = (t.exit_time or "")[:10]
+                if et == today:
+                    existing.add(t.symbol.upper())
+
+            injected = 0
+            for sym in sells:
+                if sym not in buys:
+                    continue
+                if sym in existing:
+                    continue
+
+                b_list = buys[sym]
+                s_list = sells[sym]
+                avg_buy  = sum(p*q for q,p,_ in b_list) / sum(q for q,p,_ in b_list)
+                avg_sell = sum(p*q for q,p,_ in s_list) / sum(q for q,p,_ in s_list)
+                qty_sold = sum(q for q,p,_ in s_list)
+                pnl      = (avg_sell - avg_buy) * qty_sold
+                entry_ts = min(t for _,_,t in b_list)
+                exit_ts  = max(t for _,_,t in s_list)
+
+                trade = ClosedTrade(
+                    symbol      = sym,
+                    entry_price = round(avg_buy, 4),
+                    exit_price  = round(avg_sell, 4),
+                    qty         = qty_sold,
+                    entry_time  = entry_ts,
+                    exit_time   = exit_ts,
+                    pnl         = round(pnl, 2),
+                    pnl_pct     = round((avg_sell - avg_buy) / avg_buy, 4) if avg_buy > 0 else 0,
+                    exit_reason = "Recovered from Alpaca",
+                    approach    = "Profit Maximizer",
+                )
+                self._portfolio.record_trade(trade)
+                injected += 1
+                logger.info(f"[SyncAlpaca] Injected {sym}: ${pnl:+.2f}")
+
+                # Update ticker cooldown counts so session ban reflects real history
+                if hasattr(self, '_ticker_cd'):
+                    if pnl >= 0:
+                        self._ticker_cd.record_win(sym)
+                    else:
+                        self._ticker_cd.record_loss(sym)
+
+            # Rebuild ticker losses from ALL today's recorded trades
+            # This ensures session ban reflects real history after restart
+            if hasattr(self, '_ticker_cd'):
+                # Reset counts first to avoid double-counting
+                self._ticker_cd._ticker_losses = {}
+                self._ticker_cd._ticker_cooldown = {}
+                for t in sorted(self._portfolio._trades,
+                                 key=lambda x: x.exit_time or ""):
+                    et = (t.exit_time or "")[:10]
+                    if et != today:
+                        continue
+                    sym = t.symbol.upper()
+                    if t.pnl < 0:
+                        self._ticker_cd.record_loss(sym)
+                    else:
+                        self._ticker_cd.record_win(sym)
+                logger.info(f"[SyncAlpaca] Rebuilt ticker losses: {self._ticker_cd._ticker_losses}")
+
+            if injected:
+                logger.info(f"[SyncAlpaca] Injected {injected} missing trades for {today}")
+            else:
+                logger.info(f"[SyncAlpaca] All today's trades already recorded — {len(existing)} found")
+
+        except Exception as e:
+            import traceback
+            logger.warning(f"[SyncAlpaca] Sync failed: {e}")
+            logger.debug(traceback.format_exc())
+
     def _scan_cycle(self, scan_type: str = 'EOD'):
         """One complete scan: fetch → analyse → decide → (execute in Layer 5)."""
         self._cycle_count += 1
@@ -693,7 +984,9 @@ class TradingAgent:
                 for sym, pos in self._executor.open_positions.items()
             }
         except Exception as _pe:
-            logger.debug(f"[Agent] Position sync at scan start: {_pe}")
+            logger.warning(f"[Agent] Position sync ERROR: {_pe}")
+            import traceback
+            logger.warning(traceback.format_exc())
 
         # Fetch market data
         start = scan_start - timedelta(days=365)
@@ -701,6 +994,20 @@ class TradingAgent:
         strategy_reports  : Dict                      = {}
 
         # Phase C: At market open, check if overnight-held positions gapped up
+        # Champion evaluation — runs at EOD only
+        if scan_type == "EOD":
+            try:
+                self._evaluate_champion()
+            except Exception as _ce:
+                logger.warning(f"[Champion] Eval error: {_ce}")
+
+        # Champion evaluation — runs at EOD only
+        if scan_type == "EOD":
+            try:
+                self._evaluate_champion()
+            except Exception as _ce:
+                logger.warning(f"[Champion] Eval error: {_ce}")
+
         if scan_type in ("STARTUP", "INTRADAY") and self._hold_overnight:
             from datetime import datetime as _dt2, timezone as _tz2
             _now_et = _dt2.now(_tz2.utc)
@@ -819,12 +1126,57 @@ class TradingAgent:
             daily_pnl       = self._daily_pnl,
             open_positions  = self._open_positions,
             portfolio_value = self._portfolio_value,
+            market_regime   = getattr(self._dec_engine._current_regime, 'regime', 'UNKNOWN') if hasattr(self._dec_engine, '_current_regime') and self._dec_engine._current_regime else 'UNKNOWN',
         )
 
         # Make decisions
         decisions = self._dec_engine.scan_watchlist(
             watchlist_data, strategy_reports, self._portfolio_value
         )
+
+        # ── EarningsMomentum Peer Halo (Fix 3) ──────────────────────────────
+        # If any watchlist symbol fired EarningsMomentum BUY with gap > 10%,
+        # boost conviction of same-sector peers by +0.5 for this cycle only.
+        try:
+            SECTOR_PEERS = {
+                'AMD':  ['MU','NVDA','INTC','QCOM','AMAT','AVGO','SNDK'],
+                'MU':   ['AMD','NVDA','INTC','QCOM','AMAT','AVGO','SNDK'],
+                'NVDA': ['AMD','MU','INTC','QCOM','AMAT','AVGO'],
+                'INTC': ['AMD','MU','NVDA','QCOM','AMAT','AVGO','SNDK'],
+                'QCOM': ['AMD','MU','NVDA','INTC','AMAT','AVGO'],
+                'AMAT': ['AMD','MU','NVDA','INTC','QCOM','AVGO'],
+                'AVGO': ['AMD','MU','NVDA','INTC','QCOM','AMAT'],
+                'SNDK': ['MU','INTC','AMAT'],
+                'ORCL': ['MSFT','META','GOOGL','AMZN'],
+                'MSFT': ['ORCL','META','GOOGL','AMZN'],
+            }
+            EARNINGS_HALO = 0.5   # conviction boost for sector peers
+            GAP_THRESHOLD = 0.08  # 8% gap = meaningful earnings catalyst
+            
+            catalyst_symbols = set()
+            for sym, report in strategy_reports.items():
+                for sig in report.signals:
+                    if (sig.strategy == 'EarningsMomentum' and
+                        str(sig.action).upper() in ('BUY', 'TradeAction.BUY') and
+                        sig.confidence >= 0.70):
+                        catalyst_symbols.add(sym)
+                        logger.info(f"[PeerHalo] {sym} is earnings catalyst — boosting sector peers")
+            
+            if catalyst_symbols:
+                peers_to_boost = set()
+                for cat in catalyst_symbols:
+                    peers_to_boost.update(SECTOR_PEERS.get(cat, []))
+                peers_to_boost -= catalyst_symbols  # don't double-boost the catalyst itself
+                
+                for decision in decisions:
+                    if decision.symbol in peers_to_boost and decision.action in ('BUY', 'HOLD'):
+                        decision.conviction_score = round(decision.conviction_score + EARNINGS_HALO, 3)
+                        logger.info(
+                            f"[PeerHalo] {decision.symbol} +{EARNINGS_HALO} conviction "
+                            f"(sector peer of {catalyst_symbols}) → {decision.conviction_score:.2f}"
+                        )
+        except Exception as _halo_ex:
+            logger.debug(f"[PeerHalo] Failed: {_halo_ex}")
 
         # ── Smart Exit Check ─────────────────────────────────────────────
         # Run trailing stop + smart exit manager on every scan cycle
@@ -996,7 +1348,7 @@ class TradingAgent:
                         self.config.min_conviction_score = min(rec.conviction_floor, 1.5)
                         self.config.min_strategies_agree = 1  # always 1 for Micro Momentum
                     else:
-                        self.config.min_conviction_score = rec.conviction_floor
+                        self.config.min_conviction_score = max(1.5, min(rec.conviction_floor, 2.5))
                         self.config.min_strategies_agree = rec.min_strategies
                     if old_conv != rec.conviction_floor or old_strats != rec.min_strategies:
                         logger.info(
@@ -1042,6 +1394,13 @@ class TradingAgent:
                     logger.info(f"[Agent] {d.symbol} already in open position — skipping")
                     continue
 
+                # ── Scheduler stop-out cooldown gate ─────────────────────
+                # Prevents re-entry after trailing stop / loss exit for 60-120 min
+                if d.action == "BUY" and hasattr(self, '_scheduler'):
+                    if self._scheduler.is_in_stop_cooldown(d.symbol):
+                        logger.info(f"[Agent] {d.symbol} in stop-out cooldown — skipping")
+                        continue
+
                 # ── TickerCooldown gate — per-symbol loss cooling ─────────
                 if d.action == "BUY" and hasattr(self, '_ticker_cd'):
                     _regime = getattr(self._dec_engine, '_current_regime', None)
@@ -1057,6 +1416,64 @@ class TradingAgent:
                     if not _cd_ok:
                         logger.warning(f"[TickerCooldown] {d.symbol} BLOCKED — {_cd_reason}")
                         continue
+                # ── EOD Entry Gate ───────────────────────────────────────
+                # Block new BUY entries after 12:00 PM PST (3:00 PM ET) unless
+                # a legitimate catalyst justifies the late entry.
+                if d.action == "BUY":
+                    import datetime as _dt
+                    import zoneinfo as _zi
+                    _ET  = _zi.ZoneInfo('America/New_York')
+                    _now_et = _dt.datetime.now(_ET)
+                    _eod_gate_active = (_now_et.hour > 15) or (_now_et.hour == 15 and _now_et.minute >= 0)
+                    if _eod_gate_active:
+                        # Exception 1 — Earnings catalyst fired today (earnings_gap > 8%)
+                        _has_earnings = False
+                        try:
+                            _rep = self._strategy_reports.get(d.symbol)
+                            if _rep:
+                                for _sr in (_rep.strategy_results if hasattr(_rep, 'strategy_results') else []):
+                                    if 'Earnings' in getattr(_sr, 'strategy_name', '') and getattr(_sr, 'signal', '') == 'BUY':
+                                        _has_earnings = d.conviction_score >= 3.0
+                        except Exception:
+                            pass
+
+                        # Exception 2 — Strong bull run (up >2% today, RSI 60-80, vol >1.2x, conv >=3.5)
+                        _has_bull_run = False
+                        try:
+                            _rally = rally_signals.get(d.symbol)
+                            if _rally:
+                                _day_gain = getattr(_rally, 'intraday_pct', 0) / 100
+                                _vol_ok   = getattr(_rally, 'vol_ratio', 0) >= 1.2
+                                _rsi_ok   = False
+                                _smry = self._analysis_summaries.get(d.symbol)
+                                if _smry:
+                                    _rsi_val = getattr(_smry, 'rsi', 50)
+                                    _rsi_ok  = 60 <= _rsi_val <= 80
+                                _has_bull_run = (_day_gain > 0.02 and _vol_ok and _rsi_ok
+                                                 and d.conviction_score >= 3.5)
+                        except Exception:
+                            pass
+
+                        # Exception 3 — Sector surge / PeerHalo active this session
+                        _has_sector_surge = False
+                        try:
+                            _has_sector_surge = (
+                                hasattr(self, '_peer_halo_active') and
+                                self._peer_halo_active and
+                                d.symbol in getattr(self, '_peer_halo_symbols', set()) and
+                                d.conviction_score >= 3.0
+                            )
+                        except Exception:
+                            pass
+
+                        if not (_has_earnings or _has_bull_run or _has_sector_surge):
+                            logger.info(
+                                f"[EODGate] {d.symbol} BLOCKED — after 3PM ET, "
+                                f"no earnings/bull-run/sector-surge catalyst "
+                                f"(conv={d.conviction_score:.2f})"
+                            )
+                            continue
+
                 # Apply rally conviction bonus — boost entries on rallying stocks
                 if d.action == "BUY" and rally_signals.get(d.symbol):
                     bonus = self._rally_detector.get_conviction_bonus(d.symbol)
@@ -1116,6 +1533,13 @@ class TradingAgent:
                             available_cash   = _buying_power,
                         )
                         d.dollar_amount = kelly_res.dollar_amount
+                        logger.info(
+                            f"[KellyDebug] {d.symbol}: kelly_res.dollar=${kelly_res.dollar_amount:,.2f} "
+                            f"kelly_f={kelly_res.kelly_f:.4f} conv_mult={kelly_res.conviction_mult:.2f} "
+                            f"regime_mult={kelly_res.regime_mult:.2f} fraction={kelly_res.fraction:.4f} "
+                            f"buying_power=${_buying_power:,.2f} "
+                            f"win_rate={_win_rate:.2f} avg_win={_avg_win:.2f} avg_loss={_avg_loss:.2f}"
+                        )
 
                         # ── Recalculate shares from Kelly dollar_amount ────────
                         # engine.py sets shares based on old portfolio_value logic
@@ -1143,10 +1567,10 @@ class TradingAgent:
                             )
                             continue
 
-                        # ── Session loss guard — if same symbol lost 3+ times today, ban it ──
+                        # ── Session loss guard — if same symbol lost 2+ times today, ban it ──
                         if hasattr(self, '_ticker_cd'):
                             _sym_losses = self._ticker_cd._ticker_losses.get(d.symbol.upper(), 0)
-                            if _sym_losses >= 3:
+                            if _sym_losses >= 2:
                                 logger.warning(
                                     f"[SessionGuard] {d.symbol} BANNED — {_sym_losses} losses today. "
                                     f"Not re-entering this symbol again today."

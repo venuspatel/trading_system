@@ -26,8 +26,12 @@ export default function Performance({ state, api }) {
   }, [api]);
 
   const trades  = perfData?.trades  || [];
-  const equity  = perfData?.equity  || [];
+  // Use state.equity_curve (same source as home — proven to render)
+  // Fall back to perfData.equity if state curve is empty
+  const equity  = (state?.equity_curve?.length >= 2 ? state.equity_curve : perfData?.equity) || [];
   const report  = perfData?.report  || {};
+  // Use all trades from perfData (richer than state)
+  const allTrades = trades.length > 0 ? trades : (state?.all_trades || state?.recent_trades || []);
 
   const filtered = trades.filter(t =>
     filter === "all"    ? true :
@@ -46,7 +50,7 @@ export default function Performance({ state, api }) {
   const card = { background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "12px 16px", marginBottom: 10 };
 
   return (
-    <div style={{ padding: compact ? 12 : 16, maxWidth: 900 }}>
+    <div style={{ padding: compact ? 12 : 16 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <span style={{ fontSize: 11, color: T.textMuted, textTransform: "uppercase", letterSpacing: ".08em" }}>
@@ -76,12 +80,17 @@ export default function Performance({ state, api }) {
         ))}
       </div>
 
-      {/* Equity curve */}
+      {/* Equity curve — same mechanism as home page */}
       <div style={card}>
         <div style={{ fontSize: 10, color: T.textMuted, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
           Equity curve
         </div>
-        <EquityChart curve={equity} T={T} compact={false}/>
+        {equity.length >= 2
+          ? <EquityChart curve={equity} trades={allTrades} T={T} compact={false}/>
+          : <div style={{height:240,display:"flex",alignItems:"center",justifyContent:"center",color:T.textMuted,fontSize:12}}>
+              Curve appears after first completed trades
+            </div>
+        }
       </div>
 
       {/* Trade P&L chart */}
@@ -89,7 +98,7 @@ export default function Performance({ state, api }) {
         <div style={{ fontSize: 10, color: T.textMuted, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
           Trade P&L — each bar = one trade
         </div>
-        <TradeChart trades={trades} curve={equity} T={T} compact={false}/>
+        <TradeChart trades={allTrades} curve={equity} T={T} compact={false}/>
       </div>
 
       {/* Trade log */}

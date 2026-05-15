@@ -130,6 +130,12 @@ class DivergenceStrategy(BaseStrategy):
         rsi_val  = float(rsi.iloc[-1])
 
         # Bearish divergence: price new high but RSI not confirming
+        # Fix 2a: skip bearish divergence on strong trending stocks
+        # RSI >= 65 AND above both MAs = trending market, not a topping pattern
+        _ma_sig = summary.signals.get("MA") if hasattr(summary, 'signals') else None
+        _above_both = (_ma_sig and _ma_sig.details.get("above_sma20") and _ma_sig.details.get("above_sma50")) if _ma_sig else False
+        if price_hh and not rsi_hh and rsi_val >= 65 and _above_both:
+            return self._hold(symbol, df, f"Divergence skipped: strong trend RSI={rsi_val:.1f} above both MAs")
         if price_hh and not rsi_hh and rsi_val > 55:
             confs = [
                 f"Price at new high ({price:.2f})",
@@ -188,7 +194,7 @@ class FibonacciStrategy(BaseStrategy):
 
     @property
     def role(self) -> str:
-        return StrategyRole.COUNTER_TREND
+        return StrategyRole.NEUTRAL
 
     def _find_swing(self, df, window=10):
         """Find the most recent significant swing high and low."""

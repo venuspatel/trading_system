@@ -1,13 +1,13 @@
 {
-  "updated_at": "2026-05-15T03:18:14.469344+00:00",
+  "updated_at": "2026-05-15T20:05:33.863118+00:00",
   "today": {
-    "date": "2026-05-14",
-    "trades": 3,
-    "win_rate": 1.0,
-    "day_pnl": 1149.96,
-    "max_drawdown": 0.059,
+    "date": "2026-05-15",
+    "trades": 12,
+    "win_rate": 0.5833,
+    "day_pnl": -327.79,
+    "max_drawdown": 0.0589,
     "qualifies": false,
-    "reason": "drawdown 5.9% > 3%"
+    "reason": "win_rate 58% < 75% | P&L $-328 < $300 | drawdown 5.9% > 3%"
   },
   "consecutive": 0,
   "promote_ready": false,
@@ -41,24 +41,6 @@
     },
     {
       "date": "2026-05-14",
-      "trades": 0,
-      "win_rate": 0.0,
-      "day_pnl": 0.0,
-      "max_drawdown": 0.0,
-      "qualifies": false,
-      "reason": "No trades today"
-    },
-    {
-      "date": "2026-05-14",
-      "trades": 0,
-      "win_rate": 0.0,
-      "day_pnl": 0.0,
-      "max_drawdown": 0.0,
-      "qualifies": false,
-      "reason": "No trades today"
-    },
-    {
-      "date": "2026-05-14",
       "trades": 3,
       "win_rate": 1.0,
       "day_pnl": 1149.96,
@@ -74,6 +56,24 @@
       "max_drawdown": 0.059,
       "qualifies": false,
       "reason": "drawdown 5.9% > 3%"
+    },
+    {
+      "date": "2026-05-15",
+      "trades": 12,
+      "win_rate": 0.5833,
+      "day_pnl": -327.79,
+      "max_drawdown": 0.0589,
+      "qualifies": false,
+      "reason": "win_rate 58% < 75% | P&L $-328 < $300 | drawdown 5.9% > 3%"
+    },
+    {
+      "date": "2026-05-15",
+      "trades": 12,
+      "win_rate": 0.5833,
+      "day_pnl": -327.79,
+      "max_drawdown": 0.0589,
+      "qualifies": false,
+      "reason": "win_rate 58% < 75% | P&L $-328 < $300 | drawdown 5.9% > 3%"
     }
   ],
   "criteria": {

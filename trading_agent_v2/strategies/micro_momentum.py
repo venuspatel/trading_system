@@ -33,9 +33,9 @@ class MicroMomentumStrategy(BaseStrategy):
 
     def __init__(
         self,
-        min_vol_spike:       float = 1.3,    # volume must be 1.3x average (was 2.0x — too strict)
-        min_price_move_pct:  float = 0.0003, # 0.03% move in last 2 bars (was 0.2% — too strict)
-        max_spread_pct:      float = 0.005,  # skip if spread > 0.5% (was 0.3%)
+        min_vol_spike:       float = 2.0,    # volume must be 2x average
+        min_price_move_pct:  float = 0.002,  # 0.2% move in last 2 bars
+        max_spread_pct:      float = 0.003,  # skip if spread > 0.3%
         min_bars:            int   = 5,      # need at least 5 bars of history
     ):
         self.min_vol_spike      = min_vol_spike
@@ -96,13 +96,13 @@ class MicroMomentumStrategy(BaseStrategy):
                 f"Spread too wide ({bar_spread:.2%}) — skip micro entry")
 
         # ── Momentum score ────────────────────────────────────────────
-        # Volume AND price must confirm
+        # Both volume AND price must confirm
         vol_ok   = vol_ratio >= self.min_vol_spike
         move_ok  = move_2bar >= self.min_price_move_pct
-        accel_ok = move_1bar > -self.min_price_move_pct  # not actively falling
+        accel_ok = move_1bar > 0  # still moving up on last bar
 
         if vol_ok and move_ok and accel_ok:
-            confidence = min(0.95, 0.55 + (vol_ratio - self.min_vol_spike) * 0.1 + move_2bar * 20)
+            confidence = min(0.95, 0.55 + (vol_ratio - 2.0) * 0.1 + move_2bar * 20)
             return TradeSignal(
                 symbol     = symbol,
                 timestamp  = timestamp,

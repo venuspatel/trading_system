@@ -17,7 +17,6 @@ class Approach(Enum):
     AGGRESSIVE        = "Aggressive"
     PROFIT_MAXIMIZER  = "Profit Maximizer"
     LONG_TERM         = "Long Term"
-    MICRO_MOMENTUM    = "Micro Momentum"
 
 
 class SizingMethod(Enum):
@@ -107,6 +106,22 @@ class AgentConfig:
     candle_exit:           bool          = False   # exit on reversal candle
     max_hold_days:         int           = 0       # 0 = unlimited hold
 
+    # ── Feature flags ─────────────────────────────────────────
+    # All OFF by default. Enable one at a time via saved_config.json
+    # to test each enhancement independently. No restart needed —
+    # agent reads flags each scan cycle.
+    feature_flags: dict = field(default_factory=lambda: {
+        "trail_activation":         False,
+        "atr_trailing_stops":       False,
+        "drawdown_circuit_breaker": False,
+        "sector_concentration":     False,
+        "news_sentiment":           False,
+    })
+
+    def flag(self, name: str) -> bool:
+        """Check if a feature flag is enabled. Safe default = False."""
+        return bool((self.feature_flags or {}).get(name, False))
+
     # ── Logging ───────────────────────────────────────────────
     decision_logging:      bool          = True
     log_path:              str           = "logs/decisions.jsonl"
@@ -179,7 +194,7 @@ class AgentConfig:
         self.approach              = Approach.PROFIT_MAXIMIZER
         self.min_strategies_agree  = 3
         self.confidence_threshold  = 0.65
-        self.min_conviction_score  = 2.5
+        self.min_conviction_score  = 2.0
         self.max_position_pct      = 0.12
         self.max_open_positions    = 5
         # Tight risk, quick profit
@@ -215,6 +230,18 @@ class AgentConfig:
         self.cooldown_minutes       = 45
         self.profit_lock_pct        = 0.03
         self.weekly_loss_limit_pct  = 0.10
+        # Unlimited trades by default — no artificial cap
+        self.max_trades_per_day      = 9999
+        self.max_trades_per_symbol   = 9999
+        self.trade_cooldown_minutes  = 0
+        # Feature flag defaults for Profit Maximizer
+        self.feature_flags = {
+            "trail_activation":         True,   # ON by default — protects from wick-noise
+            "atr_trailing_stops":       False,
+            "drawdown_circuit_breaker": False,
+            "sector_concentration":     False,
+            "news_sentiment":           False,
+        }
 
     def apply_long_term(self):
         """
@@ -319,6 +346,7 @@ class AgentConfig:
             "momentum_exit":          self.momentum_exit,
             "candle_exit":            self.candle_exit,
             "max_hold_days":          self.max_hold_days,
+            "feature_flags":          self.feature_flags,
         }
 
     def save(self, path: str = "config/agent_config.json"):
@@ -336,6 +364,16 @@ class AgentConfig:
                 setattr(cfg, k, Approach(v))
             elif k == "sizing_method":
                 setattr(cfg, k, SizingMethod(v))
+            elif k == "feature_flags":
+                defaults = {
+                    "trail_activation":         False,
+                    "atr_trailing_stops":       False,
+                    "drawdown_circuit_breaker": False,
+                    "sector_concentration":     False,
+                    "news_sentiment":           False,
+                }
+                defaults.update(v or {})
+                cfg.feature_flags = defaults
             elif hasattr(cfg, k):
                 setattr(cfg, k, v)
         return cfg
