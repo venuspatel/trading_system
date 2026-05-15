@@ -76,6 +76,7 @@ class OpeningRangeBreakoutStrategy(BaseStrategy):
 
     def _evaluate_orb(self, symbol: str, daily_df: pd.DataFrame,
                       intra_df: pd.DataFrame) -> TradeSignal:
+        # Fix 14: Adaptive OR duration + gap-and-go detection + ATR stops
         close  = intra_df["close"]
         high   = intra_df["high"]   if "high"   in intra_df.columns else close
         low    = intra_df["low"]    if "low"    in intra_df.columns else close
@@ -88,78 +89,130 @@ class OpeningRangeBreakoutStrategy(BaseStrategy):
         timestamp  = daily_df.index[-1].to_pydatetime() if len(daily_df) > 0 \
                      else datetime.now(timezone.utc)
 
-        # ── Opening range (first OR_BARS bars) ───────────────────────
-        or_high = float(high.iloc[:OR_BARS].max())
-        or_low  = float(low.iloc[:OR_BARS].min())
+        # Fix 14a: Adaptive OR duration based on recent volatility
+        try:
+            recent_vol_pct = float(daily_df["close"].pct_change().abs().tail(5).mean())
+            if recent_vol_pct > 0.025:
+                or_bars = 3; or_label = "45-min"
+            elif recent_vol_pct < 0.008:
+                or_bars = 1; or_label = "15-min"
+            else:
+                or_bars = OR_BARS; or_label = "30-min"
+        except Exception:
+            or_bars = OR_BARS; or_label = "30-min"
+
+        if len(intra_df) <= or_bars:
+            return self._hold(symbol, daily_df, f"Not enough bars for {or_label} OR")
+
+        or_high      = float(high.iloc[:or_bars].max())
+        or_low       = float(low.iloc[:or_bars].min())
         or_width_pct = (or_high - or_low) / or_low if or_low > 0 else 0
 
-        # Skip if OR is too wide (crazy volatile) or too narrow (no range)
         if or_width_pct > self.max_or_width_pct:
             return self._hold(symbol, daily_df,
-                f"ORB: range too wide ({or_width_pct:.1%}) — skip")
+                f"ORB: {or_label} range too wide ({or_width_pct:.1%})")
         if or_width_pct < self.min_or_width_pct:
             return self._hold(symbol, daily_df,
-                f"ORB: range too narrow ({or_width_pct:.1%}) — skip")
+                f"ORB: {or_label} range too narrow ({or_width_pct:.1%})")
 
-        # ── Volume confirmation ───────────────────────────────────────
+        # Volume
         avg_vol   = float(volume.rolling(min(10, len(volume))).mean().iloc[-1])
         curr_vol  = float(volume.iloc[-1])
         vol_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
 
-        # ── VWAP filter ───────────────────────────────────────────────
-        above_vwap = True  # default if no VWAP
+        # VWAP — calculate from bars if not in dataframe
+        above_vwap = True
+        vwap_val   = None
         if vwap is not None:
             vwap_val   = float(vwap.iloc[-1])
             above_vwap = price > vwap_val
+        else:
+            try:
+                tp         = (high + low + close) / 3
+                vwap_s     = (tp * volume).cumsum() / volume.cumsum()
+                vwap_val   = float(vwap_s.iloc[-1])
+                above_vwap = price > vwap_val
+            except Exception:
+                above_vwap = True
 
-        # ── BUY: breakout above OR high ───────────────────────────────
+        # Fix 14b: Gap-and-go detection — 2%+ open gap = higher confidence
+        is_gap_and_go = False
+        try:
+            if len(daily_df) >= 2:
+                prev_close    = float(daily_df["close"].iloc[-2])
+                today_open    = float(intra_df["open"].iloc[0]) if "open" in intra_df.columns else float(close.iloc[0])
+                gap_pct       = (today_open - prev_close) / prev_close
+                is_gap_and_go = gap_pct >= 0.02
+        except Exception:
+            is_gap_and_go = False
+
+        # Fix 14c: ATR for adaptive stops
+        try:
+            hi_d, lo_d, cl_d = daily_df["high"], daily_df["low"], daily_df["close"]
+            tr_d  = pd.concat([hi_d-lo_d, (hi_d-cl_d.shift(1)).abs(),
+                               (lo_d-cl_d.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr_d.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        # BUY: breakout above OR high
         broke_above = prev_price <= or_high and price > or_high
         if broke_above and vol_ratio >= self.min_vol_ratio and above_vwap:
-            confidence = min(0.95, 0.65 + (vol_ratio - 1.5) * 0.10)
+            base_conf  = 0.72 if is_gap_and_go else 0.65
+            confidence = min(0.95, base_conf + (vol_ratio - 1.5) * 0.08)
+            stop       = max(or_low, price - (1.5 * atr14))
+            tp         = price + (2.0 * atr14)
+            gap_note   = " gap-and-go" if is_gap_and_go else ""
             return TradeSignal(
-                symbol     = symbol,
-                timestamp  = timestamp,
-                action     = TradeAction.BUY,
-                confidence = round(confidence, 3),
-                reason     = (f"ORB breakout ↑ above ${or_high:.2f} | "
-                              f"vol={vol_ratio:.1f}x | OR={or_width_pct:.1%}"),
-                strategy   = self.name,
-                price      = price,
+                symbol=symbol, timestamp=timestamp,
+                action=TradeAction.BUY,
+                confidence=round(confidence, 3),
+                reason=(f"ORB {or_label} breakout ↑ ${or_high:.2f} "
+                        f"vol={vol_ratio:.1f}x{gap_note}"),
+                strategy=self.name,
+                stop_loss=round(stop, 2),
+                take_profit=round(tp, 2),
+                details={"or_high": round(or_high,2), "or_label": or_label,
+                         "vol_ratio": round(vol_ratio,2), "is_gap_and_go": is_gap_and_go,
+                         "above_vwap": above_vwap, "atr14": round(atr14,3)},
             )
 
-        # ── Already above OR high with strong volume ──────────────────
-        # (didn't catch the exact candle but stock is running)
-        running_above = price > or_high * 1.005  # 0.5% above OR high
+        # BUY: continuation above OR high
+        running_above = price > or_high * 1.005
         if running_above and vol_ratio >= self.min_vol_ratio * 1.2 and above_vwap:
-            # Only if not too extended
             extension = (price - or_high) / or_high
-            if extension < 0.03:  # within 3% of OR high — not too chased
+            if extension < 0.03:
+                stop = max(or_high * 0.995, price - (1.5 * atr14))
+                tp   = price + (1.5 * atr14)
                 return TradeSignal(
-                    symbol     = symbol,
-                    timestamp  = timestamp,
-                    action     = TradeAction.BUY,
-                    confidence = 0.60,
-                    reason     = (f"ORB continuation above ${or_high:.2f} "
-                                  f"+{extension:.1%} | vol={vol_ratio:.1f}x"),
-                    strategy   = self.name,
-                    price      = price,
+                    symbol=symbol, timestamp=timestamp,
+                    action=TradeAction.BUY, confidence=0.62,
+                    reason=(f"ORB {or_label} continuation +{extension:.1%} "
+                            f"vol={vol_ratio:.1f}x"),
+                    strategy=self.name,
+                    stop_loss=round(stop, 2),
+                    take_profit=round(tp, 2),
+                    details={"or_high": round(or_high,2), "extension": round(extension,3)},
                 )
 
-        # ── SELL: price falls back below OR high (exit signal) ────────
+        # SELL: price falls back below OR high
         broke_below_or_high = prev_price > or_high and price <= or_high
         if broke_below_or_high:
+            stop = price + (1.0 * atr14)
+            tp   = or_low
             return TradeSignal(
-                symbol     = symbol,
-                timestamp  = timestamp,
-                action     = TradeAction.SELL,
-                confidence = 0.70,
-                reason     = f"ORB failed — price fell back below ${or_high:.2f}",
-                strategy   = self.name,
-                price      = price,
+                symbol=symbol, timestamp=timestamp,
+                action=TradeAction.SELL, confidence=0.70,
+                reason=f"ORB {or_label} failed — fell back below ${or_high:.2f}",
+                strategy=self.name,
+                stop_loss=round(stop, 2),
+                take_profit=round(tp, 2),
+                details={"or_high": round(or_high,2)},
             )
 
         return self._hold(
             symbol, daily_df,
-            f"OR: high=${or_high:.2f} low=${or_low:.2f} price=${price:.2f} "
-            f"vol={vol_ratio:.1f}x above_vwap={above_vwap}"
+            f"OR {or_label}: high=${or_high:.2f} price=${price:.2f} "
+            f"vol={vol_ratio:.1f}x vwap={above_vwap}"
         )
+
