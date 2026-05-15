@@ -120,6 +120,11 @@ async def auto_restore_and_start():
                 _log.info("[API] News fetcher initialized on startup ✓")
             except Exception as _ne:
                 _log.warning(f"[API] News fetcher init failed: {_ne}")
+        # Wire fetcher instances to agent so auto-refresh inside scan cycle works
+        if _agent and _news_fetcher:
+            _agent._news_fetcher  = _news_fetcher
+            _agent._sentiment_eng = _sentiment_eng
+            _log.info("[API] News fetcher wired to agent for auto-refresh ✓")
             # Enable intraday mode using config interval
             import time as _time, threading as _th
             def _auto_intraday_restore():
@@ -131,6 +136,14 @@ async def auto_restore_and_start():
                         _log.info(f"[API] Intraday mode AUTO-ON on restore ✓ ({interval} min)")
                 except Exception as _e:
                     _log.warning(f"[API] Intraday auto-on (restore) failed: {_e}")
+                # Wire news fetcher after agent fully initialized — news_fetcher_intraday_wire
+                try:
+                    if _agent and _news_fetcher:
+                        _agent._news_fetcher  = _news_fetcher
+                        _agent._sentiment_eng = _sentiment_eng
+                        _log.info("[API] News fetcher wired to agent after restore ✓")
+                except Exception as _e:
+                    _log.warning(f"[API] News fetcher wire failed: {_e}")
             _th.Thread(target=_auto_intraday_restore, daemon=True).start()
     except Exception as e:
         _log.warning(f"[API] Auto-restore failed: {e}")

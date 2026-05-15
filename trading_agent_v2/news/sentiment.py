@@ -26,7 +26,7 @@ from .fetcher import NewsArticle, SymbolNews
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
-MODEL             = "claude-sonnet-4-20250514"
+MODEL             = "claude-sonnet-4-6"
 
 # Keyword-based fallback scorer
 POSITIVE_WORDS = {
@@ -329,5 +329,5 @@ Respond with just the 2-sentence summary — no JSON, no preamble."""
         }.get(grade, "neutral")
         return (
             f"News sentiment is {desc} based on {count} articles from {src}. "
-            f"Add ANTHROPIC_API_KEY to .env for deeper AI analysis."
+            f"AI analysis active — refresh to update sentiment."
         )

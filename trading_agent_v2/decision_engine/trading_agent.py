@@ -977,6 +977,24 @@ class TradingAgent:
         self._cycle_count += 1
         scan_start = datetime.now(timezone.utc)
         logger.info(f"[Agent] Cycle #{self._cycle_count} ({scan_type}) starting — {self.config.watchlist}")
+
+        # Auto news refresh every 10 cycles (~20 min at 2-min scan interval)
+        _news_flag = (getattr(self.config, 'feature_flags', {}) or {}).get('news_sentiment', False)
+        if _news_flag and self._cycle_count % 10 == 1:
+            import threading as _th
+            def _auto_news_refresh():
+                try:
+                    _fetcher = getattr(self, '_news_fetcher', None)
+                    _scorer  = getattr(self, '_sentiment_eng', None)
+                    if _fetcher and _scorer:
+                        news_map   = _fetcher.fetch_watchlist(self.config.watchlist or [])
+                        scores     = _scorer.score_watchlist(news_map)
+                        news_cache = {sym: s.to_dict() for sym, s in scores.items()}
+                        self.update_news_cache(news_cache)
+                        logger.info(f"[Agent] Auto news refresh: {len(news_cache)} symbols scored")
+                except Exception as _ne:
+                    logger.debug(f"[Agent] Auto news refresh failed: {_ne}")
+            _th.Thread(target=_auto_news_refresh, daemon=True, name="auto-news-refresh").start()
         # Fully sync _open_positions from Alpaca every cycle
         # This removes closed positions and adds new ones — keeps count accurate
         try:
