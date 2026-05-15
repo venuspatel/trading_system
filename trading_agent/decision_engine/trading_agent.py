@@ -100,6 +100,7 @@ class TradingAgent:
                 secret_key = _alpaca_sec,
                 paper      = getattr(config, "paper_trading", True),
             )
+            self._portfolio.sync_eod_from_alpaca()  # Fix A: inject missing EOD trades
         self._trailing_mgr  = TrailingStopManager(config)
         self._adaptive      = AdaptiveThresholdEngine()
         # Explicitly import from decision_engine.strategy_ranker (has record_trade)
@@ -234,7 +235,7 @@ class TradingAgent:
         """Trigger an immediate scan outside the normal schedule."""
         if self.status == AgentStatus.RUNNING:
             threading.Thread(
-                target=self._scan_cycle, daemon=True, name="agent-forced-scan"
+                target=lambda: self._scan_cycle(scan_type="INTRADAY"), daemon=True, name="agent-forced-scan"
             ).start()
 
     # ------------------------------------------------------------------
