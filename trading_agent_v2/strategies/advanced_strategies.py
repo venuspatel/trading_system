@@ -34,24 +34,44 @@ class CandleContinuationStrategy(BaseStrategy):
         return StrategyRole.NEUTRAL
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
+        # Fix 11: Volume confirmation + body size filter + ATR stops + scaled confidence
         if len(df) < 10:
             return self._hold(symbol, df, "Not enough bars")
 
+        import pandas as pd
         price     = float(df["close"].iloc[-1])
         timestamp = df.index[-1].to_pydatetime()
         ma_sig    = summary.signals.get("MA")
 
+        # ── Fix 11a: ATR for body size filter + stops ────────────────────
+        try:
+            hi, lo, cl = df["high"], df["low"], df["close"]
+            tr    = pd.concat([hi-lo, (hi-cl.shift(1)).abs(),
+                               (lo-cl.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        # ── Fix 11b: Volume confirmation ─────────────────────────────────
+        avg_vol   = float(df["volume"].rolling(20).mean().iloc[-1]) if len(df) >= 20 else 0
+        curr_vol  = float(df["volume"].iloc[-1])
+        vol_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
+        vol_ok    = vol_ratio >= 1.3
+
         # Three White Soldiers: 3 consecutive bullish candles, each closing higher
+        # Fix 11c: Each body must be > 0.5x ATR (filters tiny-body soldiers)
         three_white = all(
             df["close"].iloc[-i] > df["open"].iloc[-i] and
-            df["close"].iloc[-i] > df["close"].iloc[-(i+1)]
+            df["close"].iloc[-i] > df["close"].iloc[-(i+1)] and
+            abs(float(df["close"].iloc[-i]) - float(df["open"].iloc[-i])) > atr14 * 0.5
             for i in range(1, 4)
         )
 
         # Three Black Crows: 3 consecutive bearish candles, each closing lower
         three_black = all(
             df["close"].iloc[-i] < df["open"].iloc[-i] and
-            df["close"].iloc[-i] < df["close"].iloc[-(i+1)]
+            df["close"].iloc[-i] < df["close"].iloc[-(i+1)] and
+            abs(float(df["close"].iloc[-i]) - float(df["open"].iloc[-i])) > atr14 * 0.5
             for i in range(1, 4)
         )
 
@@ -59,30 +79,56 @@ class CandleContinuationStrategy(BaseStrategy):
         bearish_trend = ma_sig and not ma_sig.details.get("above_sma50", True)
 
         if three_white and bullish_trend:
-            confs = ["Three White Soldiers", "MA trend bullish"]
-            stop  = float(df["low"].iloc[-3]) * 0.99
+            if not vol_ok:
+                return self._hold(symbol, df,
+                    f"Three White Soldiers but volume weak ({vol_ratio:.1f}x < 1.3x)")
+            confs = [
+                "Three White Soldiers",
+                "MA trend bullish",
+                f"Volume confirmed {vol_ratio:.1f}x",
+                f"Bodies > 0.5x ATR ({atr14:.2f})",
+            ]
+            # Fix 11d: Scale confidence by vol ratio
+            confidence = min(0.70 + (vol_ratio - 1.3) * 0.05, 0.88)
+            stop = price - (1.5 * atr14)
+            tp   = price + (3.0 * atr14)
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
-                action=TradeAction.BUY, confidence=0.72,
-                reason="Three White Soldiers in uptrend",
+                action=TradeAction.BUY,
+                confidence=round(confidence, 3),
+                reason=f"Three White Soldiers vol={vol_ratio:.1f}x ATR-confirmed",
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price + (price - stop) * 2, 2),
+                take_profit=round(tp, 2),
+                details={"vol_ratio": round(vol_ratio,2), "atr14": round(atr14,3)},
             )
 
         if three_black and bearish_trend:
-            confs = ["Three Black Crows", "MA trend bearish"]
-            stop  = float(df["high"].iloc[-3]) * 1.01
+            if not vol_ok:
+                return self._hold(symbol, df,
+                    f"Three Black Crows but volume weak ({vol_ratio:.1f}x < 1.3x)")
+            confs = [
+                "Three Black Crows",
+                "MA trend bearish",
+                f"Volume confirmed {vol_ratio:.1f}x",
+            ]
+            confidence = min(0.68 + (vol_ratio - 1.3) * 0.05, 0.85)
+            stop = price + (1.5 * atr14)
+            tp   = price - (3.0 * atr14)
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
-                action=TradeAction.SELL, confidence=0.70,
-                reason="Three Black Crows in downtrend",
+                action=TradeAction.SELL,
+                confidence=round(confidence, 3),
+                reason=f"Three Black Crows vol={vol_ratio:.1f}x ATR-confirmed",
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price - (stop - price) * 2, 2),
+                take_profit=round(tp, 2),
+                details={"vol_ratio": round(vol_ratio,2), "atr14": round(atr14,3)},
             )
 
-        return self._hold(symbol, df, "No continuation pattern")
+        return self._hold(symbol, df,
+            f"No continuation: white={three_white} black={three_black} "
+            f"bull_trend={bullish_trend} vol={vol_ratio:.1f}x")
 
 
 # ============================================================
