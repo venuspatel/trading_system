@@ -482,6 +482,9 @@ class TradingAgent:
             logger.warning(f"[Agent] Position registration failed: {ex}")
         logger.info("[Agent] Data connection established")
 
+        # Alpaca ground truth sync — injects missing trades + rebuilds ticker loss counts
+        self._sync_today_from_alpaca()
+
     def _run_loop(self):
         """Main autonomous loop — delegates timing to MarketScheduler."""
         self._scheduler.start()
@@ -841,6 +844,126 @@ class TradingAgent:
         except Exception:
             pass
         return 0.0  # fallback — caller uses config stop_loss_pct
+
+
+    def _sync_today_from_alpaca(self):
+        """
+        Pulls today's closed orders from Alpaca on every startup and:
+        1. Injects any missing trades into portfolio.json
+        2. Rebuilds _ticker_cd loss counts so session ban survives restarts
+        3. Fixes day P&L and trade count to be calendar-based not session-based
+        """
+        try:
+            import urllib.request as _ur, json as _json
+            from datetime import datetime, timezone, timedelta
+            from execution.portfolio_tracker import ClosedTrade
+
+            KEY = getattr(self._executor, '_api_key', '') or getattr(self._executor, 'api_key', '')
+            SEC = getattr(self._executor, '_secret_key', '') or getattr(self._executor, 'secret_key', '')
+            if not KEY or not SEC:
+                logger.warning("[SyncAlpaca] No credentials — skipping")
+                return
+
+            base = "https://paper-api.alpaca.markets" if getattr(self._executor, '_paper', True) else "https://api.alpaca.markets"
+
+            req = _ur.Request(
+                f"{base}/v2/orders?status=closed&limit=50&direction=desc",
+                headers={"APCA-API-KEY-ID": KEY, "APCA-API-SECRET-KEY": SEC}
+            )
+            orders = _json.loads(_ur.urlopen(req, timeout=8).read())
+
+            ET    = timezone(timedelta(hours=-4))
+            today = datetime.now(ET).strftime("%Y-%m-%d")
+
+            buys  = {}
+            sells = {}
+            for o in orders:
+                filled_at = (o.get("filled_at") or "")[:10]
+                if filled_at != today:
+                    continue
+                sym   = o.get("symbol","").upper()
+                price = float(o.get("filled_avg_price") or 0)
+                qty   = int(o.get("filled_qty") or 0)
+                side  = o.get("side","")
+                ts    = o.get("filled_at","")
+                if side == "buy":
+                    buys.setdefault(sym, []).append((qty, price, ts))
+                else:
+                    sells.setdefault(sym, []).append((qty, price, ts))
+
+            # Get existing today's trade symbols to avoid duplicates
+            existing = set()
+            for t in self._portfolio._trades:
+                et = (t.exit_time or "")[:10]
+                if et == today:
+                    existing.add(t.symbol.upper())
+
+            injected = 0
+            for sym in sells:
+                if sym not in buys:
+                    continue
+                if sym in existing:
+                    continue
+
+                b_list = buys[sym]
+                s_list = sells[sym]
+                avg_buy  = sum(p*q for q,p,_ in b_list) / sum(q for q,p,_ in b_list)
+                avg_sell = sum(p*q for q,p,_ in s_list) / sum(q for q,p,_ in s_list)
+                qty_sold = sum(q for q,p,_ in s_list)
+                pnl      = (avg_sell - avg_buy) * qty_sold
+                entry_ts = min(t for _,_,t in b_list)
+                exit_ts  = max(t for _,_,t in s_list)
+
+                trade = ClosedTrade(
+                    symbol      = sym,
+                    entry_price = round(avg_buy, 4),
+                    exit_price  = round(avg_sell, 4),
+                    qty         = qty_sold,
+                    entry_time  = entry_ts,
+                    exit_time   = exit_ts,
+                    pnl         = round(pnl, 2),
+                    pnl_pct     = round((avg_sell - avg_buy) / avg_buy, 4) if avg_buy > 0 else 0,
+                    exit_reason = "Recovered from Alpaca",
+                    approach    = "Profit Maximizer",
+                )
+                self._portfolio.record_trade(trade)
+                injected += 1
+                logger.info(f"[SyncAlpaca] Injected {sym}: ${pnl:+.2f}")
+
+                # Update ticker cooldown counts so session ban reflects real history
+                if hasattr(self, '_ticker_cd'):
+                    if pnl >= 0:
+                        self._ticker_cd.record_win(sym)
+                    else:
+                        self._ticker_cd.record_loss(sym)
+
+            # Rebuild ticker losses from ALL today's recorded trades
+            # This ensures session ban reflects real history after restart
+            if hasattr(self, '_ticker_cd'):
+                # Reset counts first to avoid double-counting
+                self._ticker_cd._ticker_losses = {}
+                self._ticker_cd._ticker_cooldown = {}
+                for t in sorted(self._portfolio._trades,
+                                 key=lambda x: x.exit_time or ""):
+                    et = (t.exit_time or "")[:10]
+                    if et != today:
+                        continue
+                    sym = t.symbol.upper()
+                    if t.pnl < 0:
+                        self._ticker_cd.record_loss(sym)
+                    else:
+                        self._ticker_cd.record_win(sym)
+                logger.info(f"[SyncAlpaca] Rebuilt ticker losses: {self._ticker_cd._ticker_losses}")
+
+            if injected:
+                logger.info(f"[SyncAlpaca] Injected {injected} missing trades for {today}")
+            else:
+                logger.info(f"[SyncAlpaca] All today's trades already recorded — {len(existing)} found")
+
+        except Exception as e:
+            import traceback
+            logger.warning(f"[SyncAlpaca] Sync failed: {e}")
+            logger.debug(traceback.format_exc())
 
     def _scan_cycle(self, scan_type: str = 'EOD'):
         """One complete scan: fetch → analyse → decide → (execute in Layer 5)."""

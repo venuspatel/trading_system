@@ -435,10 +435,10 @@ export default function Dashboard({ state, events, api }) {
                 }
               </div>
 
-              {/* Today's trades — with IN→OUT prices + times */}
+              {/* Trades — with IN→OUT prices + times */}
               <div style={card}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",...sectionLabel}}>
-                  <span>Today's trades</span>
+                  <span>Trades</span>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     {totalPages > 1 && (
                       <span style={{fontSize:9,color:T.textMuted}}>
@@ -480,7 +480,7 @@ export default function Dashboard({ state, events, api }) {
                   {trades.length === 0
                     ? <div style={{height:120,display:"flex",alignItems:"center",justifyContent:"center",
                         fontSize:11,color:T.textMuted}}>
-                        No trades today yet
+                        No trades yet
                       </div>
                     : pageTrades.map((t,i) => {
                         const won = t.pnl >= 0;
@@ -501,7 +501,7 @@ export default function Dashboard({ state, events, api }) {
                             <div>
                               <div style={{fontWeight:600,color:T.textPrimary,fontSize:12}}>{t.symbol}</div>
                               {t.exit_time && (
-                                <div style={{fontSize:8,color:T.textSecondary,marginTop:1}}>
+                                <div style={{fontSize:11,color:T.textPrimary,fontWeight:500,marginTop:1}}>
                                   {new Date(t.exit_time).toLocaleDateString("en-US",{month:"short",day:"numeric"})}
                                 </div>
                               )}

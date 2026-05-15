@@ -40,6 +40,38 @@ class TickerCooldown:
         self._ticker_losses:   dict = {}   # symbol → count today
         self._ticker_cooldown: dict = {}   # symbol → expiry datetime
         self._day_date:        str  = ""
+        self._load_ticker_state()
+
+    def _save_ticker_state(self):
+        """Persist ticker loss counts to disk — survives restarts."""
+        try:
+            import json, os
+            from datetime import datetime, timezone, timedelta
+            ET = timezone(timedelta(hours=-4))
+            today = datetime.now(ET).strftime("%Y-%m-%d")
+            path = "logs/ticker_cd.json"
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                json.dump({"date": today, "ticker_losses": self._ticker_losses}, f)
+        except Exception as e:
+            logger.debug(f"[TickerCD] Save failed: {e}")
+
+    def _load_ticker_state(self):
+        """Load ticker loss counts from disk — survives restarts."""
+        try:
+            import json, os
+            from datetime import datetime, timezone, timedelta
+            ET = timezone(timedelta(hours=-4))
+            today = datetime.now(ET).strftime("%Y-%m-%d")
+            path = "logs/ticker_cd.json"
+            if os.path.exists(path):
+                with open(path) as f:
+                    data = json.load(f)
+                if data.get("date") == today:
+                    self._ticker_losses = data.get("ticker_losses", {})
+                    logger.info(f"[TickerCD] Restored losses: {self._ticker_losses}")
+        except Exception as e:
+            logger.debug(f"[TickerCD] Load failed: {e}")
 
     def _check_day_reset(self):
         from datetime import datetime, timezone, timedelta
@@ -90,6 +122,8 @@ class TickerCooldown:
                 f"[TickerCooldown] {sym} LOSS #{count} — FULL DAY BAN. "
                 f"Agent will not re-enter {sym} today."
             )
+
+        self._save_ticker_state()
 
     def record_win(self, symbol: str):
         """A win clears consecutive loss tracking for this ticker."""
