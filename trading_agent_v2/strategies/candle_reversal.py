@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-Strategy 4: Candle Reversal
------------------------------
+Strategy 4: Candle Reversal (V2 Enhanced)
+-------------------------------------------
 Trades high-confidence reversal candlestick patterns
 that appear at key support/resistance levels.
+
+V2 adds on top of V1:
+  - Pin Bar (68% win rate — most used by pro day traders)
+  - Harami / Harami Cross (72.85% win rate — highest of any 2-candle pattern)
+  - Gravestone Doji (57% win rate — bearish rejection at highs)
+  - Dragonfly Doji (55% win rate — bullish rejection at lows)
+  - Inverted Hammer as entry signal (60% win rate — was exit-only in V1)
 
 The key insight: a pattern alone is ~55% reliable.
 The same pattern AT a S/R level is ~72% reliable.
 Adding RSI confirmation pushes it to ~78%.
 
 Bullish reversals (BUY):
-  Hammer / Bullish Engulfing / Morning Star
-  -- must appear near a support level
-  -- RSI < 50 preferred (not already overbought)
+  Hammer / Bullish Engulfing / Morning Star        ← V1
+  Inverted Hammer / Pin Bar / Harami / Dragonfly   ← V2 NEW
 
 Bearish reversals (SELL):
-  Shooting Star / Bearish Engulfing / Evening Star
-  -- must appear near a resistance level
-  -- RSI > 50 preferred
+  Shooting Star / Bearish Engulfing / Evening Star ← V1
+  Pin Bar (bearish) / Harami (bearish) / Gravestone← V2 NEW
 """
 
 import pandas as pd
@@ -25,8 +30,120 @@ from .base import BaseStrategy, TradeAction, TradeSignal, StrategyRole
 from indicators.base import SignalDirection
 
 
-BULLISH_PATTERNS = {"Hammer", "Bullish Engulfing", "Morning Star"}
-BEARISH_PATTERNS = {"Shooting Star", "Bearish Engulfing", "Evening Star"}
+# ── V1 patterns (from candle indicator) ──────────────────────
+BULLISH_PATTERNS = {"Hammer", "Bullish Engulfing", "Morning Star", "Inverted Hammer", "Pin Bar Bullish", "Harami", "Harami Cross", "Dragonfly Doji"}
+BEARISH_PATTERNS = {"Shooting Star", "Bearish Engulfing", "Evening Star", "Pin Bar Bearish", "Gravestone Doji"}
+
+
+def _detect_pin_bar(df: pd.DataFrame, bullish: bool) -> tuple:
+    """
+    Pin Bar: long wick rejection candle.
+    Wick must be >= 2x the body size.
+    Bullish: long lower wick (rejection of lows)
+    Bearish: long upper wick (rejection of highs)
+    Returns (detected: bool, wick_ratio: float)
+    """
+    o = float(df["open"].iloc[-1])
+    h = float(df["high"].iloc[-1])
+    l = float(df["low"].iloc[-1])
+    c = float(df["close"].iloc[-1])
+
+    body = abs(c - o)
+    if body == 0:
+        return False, 0.0
+
+    if bullish:
+        lower_wick = min(o, c) - l
+        upper_wick = h - max(o, c)
+        ratio = lower_wick / body
+        # Bullish pin bar: lower wick >= 2x body, upper wick <= 0.5x body
+        detected = ratio >= 2.0 and upper_wick <= body * 0.5
+    else:
+        upper_wick = h - max(o, c)
+        lower_wick = min(o, c) - l
+        ratio = upper_wick / body
+        # Bearish pin bar: upper wick >= 2x body, lower wick <= 0.5x body
+        detected = ratio >= 2.0 and lower_wick <= body * 0.5
+
+    return detected, round(ratio, 2)
+
+
+def _detect_harami(df: pd.DataFrame) -> tuple:
+    """
+    Harami: second candle completely inside the first.
+    Harami Cross: second candle is a doji (body < 10% of first).
+    Returns (pattern: str or None, direction: str)
+    pattern = 'Harami' | 'Harami Cross' | None
+    direction = 'bullish' | 'bearish' | None
+    """
+    if len(df) < 2:
+        return None, None
+
+    o1 = float(df["open"].iloc[-2])
+    c1 = float(df["close"].iloc[-2])
+    o2 = float(df["open"].iloc[-1])
+    c2 = float(df["close"].iloc[-1])
+    h1 = float(df["high"].iloc[-2])
+    l1 = float(df["low"].iloc[-2])
+
+    body1 = abs(c1 - o1)
+    body2 = abs(c2 - o2)
+    if body1 == 0:
+        return None, None
+
+    # Second candle body must be inside first candle body
+    inside = (max(o2, c2) < max(o1, c1) and min(o2, c2) > min(o1, c1))
+    if not inside:
+        return None, None
+
+    body_ratio = body2 / body1
+    is_cross = body_ratio < 0.10  # doji second candle
+
+    # Direction: first candle determines trend, harami signals reversal
+    if c1 < o1:  # first candle bearish → bullish harami
+        pattern = "Harami Cross" if is_cross else "Harami"
+        return pattern, "bullish"
+    elif c1 > o1:  # first candle bullish → bearish harami
+        pattern = "Harami Cross" if is_cross else "Harami"
+        return pattern, "bearish"
+
+    return None, None
+
+
+def _detect_doji_variant(df: pd.DataFrame) -> str | None:
+    """
+    Gravestone Doji: open ≈ close ≈ low, long upper wick
+    Dragonfly Doji:  open ≈ close ≈ high, long lower wick
+    Returns pattern name or None
+    """
+    o = float(df["open"].iloc[-1])
+    h = float(df["high"].iloc[-1])
+    l = float(df["low"].iloc[-1])
+    c = float(df["close"].iloc[-1])
+
+    body = abs(c - o)
+    full_range = h - l
+    if full_range == 0:
+        return None
+
+    body_pct = body / full_range
+
+    # Must be doji-like (body < 10% of range)
+    if body_pct > 0.10:
+        return None
+
+    upper_wick = h - max(o, c)
+    lower_wick = min(o, c) - l
+
+    # Gravestone: long upper wick, tiny lower wick
+    if upper_wick > full_range * 0.7 and lower_wick < full_range * 0.1:
+        return "Gravestone Doji"
+
+    # Dragonfly: long lower wick, tiny upper wick
+    if lower_wick > full_range * 0.7 and upper_wick < full_range * 0.1:
+        return "Dragonfly Doji"
+
+    return None
 
 
 class CandleReversalStrategy(BaseStrategy):
@@ -40,7 +157,7 @@ class CandleReversalStrategy(BaseStrategy):
 
     @property
     def description(self) -> str:
-        return "Trades reversal candle patterns confirmed at support/resistance levels"
+        return "Reversal patterns (V2: + Pin Bar, Harami, Doji variants) at S/R levels"
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
         if len(df) < 10:
@@ -53,23 +170,52 @@ class CandleReversalStrategy(BaseStrategy):
         sr_sig     = summary.signals.get("SR")
         rsi_sig    = summary.signals.get("RSI")
 
-        if not candle_sig:
-            return self._hold(symbol, df, "No candle data")
-
-        pattern  = candle_sig.details.get("pattern")
-        if not pattern or pattern == "Doji":
-            return self._hold(symbol, df, "No strong reversal pattern")
-
-        rsi_val  = rsi_sig.details.get("rsi", 50) if rsi_sig else 50
+        rsi_val     = rsi_sig.details.get("rsi", 50) if rsi_sig else 50
         supports    = sr_sig.details.get("support_levels", [])    if sr_sig else []
         resistances = sr_sig.details.get("resistance_levels", []) if sr_sig else []
 
-        confirmations = [f"{pattern} pattern detected"]
-        confidence    = 0.55    # base: pattern alone
+        # ── Detect V1 patterns from candle indicator ──────────
+        v1_pattern = None
+        if candle_sig:
+            p = candle_sig.details.get("pattern")
+            if p and p != "Doji":
+                v1_pattern = p
 
-        # BUY: bullish pattern
-        if pattern in BULLISH_PATTERNS:
-            # Check if near support
+        # ── Detect V2 new patterns from raw OHLCV ─────────────
+        bull_pin, bull_pin_ratio = _detect_pin_bar(df, bullish=True)
+        bear_pin, bear_pin_ratio = _detect_pin_bar(df, bullish=False)
+        harami_pattern, harami_dir = _detect_harami(df)
+        doji_variant = _detect_doji_variant(df)
+
+        # ── Determine signal direction ─────────────────────────
+
+        # --- BULLISH signals ---
+        bullish_pattern = None
+        base_confidence = 0.55
+
+        if v1_pattern in BULLISH_PATTERNS:
+            bullish_pattern = v1_pattern
+            if v1_pattern in {"Bullish Engulfing", "Morning Star"}:
+                base_confidence = 0.60
+            elif v1_pattern == "Inverted Hammer":
+                base_confidence = 0.60  # 60% win rate research
+
+        elif bull_pin:
+            bullish_pattern = f"Pin Bar (wick {bull_pin_ratio:.1f}x body)"
+            base_confidence = 0.62  # 68% win rate → 62% base before confirmations
+
+        elif harami_pattern and harami_dir == "bullish":
+            bullish_pattern = harami_pattern
+            base_confidence = 0.65 if harami_pattern == "Harami Cross" else 0.60
+
+        elif doji_variant == "Dragonfly Doji":
+            bullish_pattern = "Dragonfly Doji"
+            base_confidence = 0.55
+
+        if bullish_pattern:
+            confirmations = [f"{bullish_pattern} detected"]
+            confidence    = base_confidence
+
             near_support = any(
                 abs(price - s) / price < self.sr_proximity
                 for s in supports
@@ -81,15 +227,9 @@ class CandleReversalStrategy(BaseStrategy):
             if rsi_val < 50:
                 confirmations.append(f"RSI not overbought ({rsi_val:.1f})")
                 confidence += 0.08
-
             if rsi_val < 35:
-                confirmations.append(f"RSI oversold ({rsi_val:.1f}) -- strong confirmation")
+                confirmations.append(f"RSI oversold ({rsi_val:.1f})")
                 confidence += 0.07
-
-            # Strong patterns get extra weight
-            if pattern in {"Bullish Engulfing", "Morning Star"}:
-                confirmations.append(f"strong pattern ({pattern})")
-                confidence += 0.05
 
             stop = float(df["low"].iloc[-1]) * 0.99
             tp   = price + (price - stop) * 2.0
@@ -100,15 +240,43 @@ class CandleReversalStrategy(BaseStrategy):
                 timestamp     = timestamp,
                 action        = TradeAction.BUY,
                 confidence    = min(confidence, 0.93),
-                reason        = f"{pattern} at key level (RSI={rsi_val:.1f})",
+                reason        = f"{bullish_pattern} at key level (RSI={rsi_val:.1f})",
                 confirmations = confirmations,
                 stop_loss     = round(stop, 2),
                 take_profit   = round(tp, 2),
-                details       = {"pattern": pattern, "rsi": rsi_val, "near_support": near_support if supports else False},
+                details       = {
+                    "pattern":      bullish_pattern,
+                    "rsi":          rsi_val,
+                    "near_support": near_support if supports else False,
+                    "v2_pattern":   bullish_pattern not in BULLISH_PATTERNS,
+                },
             )
 
-        # SELL: bearish pattern
-        if pattern in BEARISH_PATTERNS:
+        # --- BEARISH signals ---
+        bearish_pattern = None
+        base_confidence = 0.55
+
+        if v1_pattern in BEARISH_PATTERNS:
+            bearish_pattern = v1_pattern
+            if v1_pattern in {"Bearish Engulfing", "Evening Star"}:
+                base_confidence = 0.60
+
+        elif bear_pin:
+            bearish_pattern = f"Pin Bar bearish (wick {bear_pin_ratio:.1f}x body)"
+            base_confidence = 0.62
+
+        elif harami_pattern and harami_dir == "bearish":
+            bearish_pattern = harami_pattern
+            base_confidence = 0.65 if harami_pattern == "Harami Cross" else 0.60
+
+        elif doji_variant == "Gravestone Doji":
+            bearish_pattern = "Gravestone Doji"
+            base_confidence = 0.57
+
+        if bearish_pattern:
+            confirmations = [f"{bearish_pattern} detected"]
+            confidence    = base_confidence
+
             near_resistance = any(
                 abs(price - r) / price < self.sr_proximity
                 for r in resistances
@@ -120,14 +288,9 @@ class CandleReversalStrategy(BaseStrategy):
             if rsi_val > 50:
                 confirmations.append(f"RSI elevated ({rsi_val:.1f})")
                 confidence += 0.08
-
             if rsi_val > 65:
-                confirmations.append(f"RSI overbought ({rsi_val:.1f}) -- strong confirmation")
+                confirmations.append(f"RSI overbought ({rsi_val:.1f})")
                 confidence += 0.07
-
-            if pattern in {"Bearish Engulfing", "Evening Star"}:
-                confirmations.append(f"strong pattern ({pattern})")
-                confidence += 0.05
 
             stop = float(df["high"].iloc[-1]) * 1.01
             tp   = price - (stop - price) * 2.0
@@ -138,11 +301,16 @@ class CandleReversalStrategy(BaseStrategy):
                 timestamp     = timestamp,
                 action        = TradeAction.SELL,
                 confidence    = min(confidence, 0.93),
-                reason        = f"{pattern} at key level (RSI={rsi_val:.1f})",
+                reason        = f"{bearish_pattern} at key level (RSI={rsi_val:.1f})",
                 confirmations = confirmations,
                 stop_loss     = round(stop, 2),
                 take_profit   = round(tp, 2),
-                details       = {"pattern": pattern, "rsi": rsi_val},
+                details       = {
+                    "pattern":          bearish_pattern,
+                    "rsi":              rsi_val,
+                    "near_resistance":  near_resistance if resistances else False,
+                    "v2_pattern":       bearish_pattern not in BEARISH_PATTERNS,
+                },
             )
 
-        return self._hold(symbol, df, f"Pattern {pattern} not a reversal signal")
+        return self._hold(symbol, df, "No reversal pattern detected")
