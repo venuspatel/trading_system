@@ -1,0 +1,77 @@
+{
+  "updated_at": "2026-05-15T21:49:25.264326+00:00",
+  "today": {
+    "date": "2026-05-15",
+    "trades": 0,
+    "win_rate": 0.0,
+    "day_pnl": 0.0,
+    "max_drawdown": 0.0,
+    "qualifies": false,
+    "reason": "No trades today"
+  },
+  "consecutive": 0,
+  "promote_ready": false,
+  "history": [
+    {
+      "date": "2026-05-15",
+      "trades": 0,
+      "win_rate": 0.0,
+      "day_pnl": 0.0,
+      "max_drawdown": 0.0,
+      "qualifies": false,
+      "reason": "No trades today"
+    },
+    {
+      "date": "2026-05-15",
+      "trades": 0,
+      "win_rate": 0.0,
+      "day_pnl": 0.0,
+      "max_drawdown": 0.0,
+      "qualifies": false,
+      "reason": "No trades today"
+    },
+    {
+      "date": "2026-05-15",
+      "trades": 0,
+      "win_rate": 0.0,
+      "day_pnl": 0.0,
+      "max_drawdown": 0.0,
+      "qualifies": false,
+      "reason": "No trades today"
+    },
+    {
+      "date": "2026-05-15",
+      "trades": 0,
+      "win_rate": 0.0,
+      "day_pnl": 0.0,
+      "max_drawdown": 0.0,
+      "qualifies": false,
+      "reason": "No trades today"
+    },
+    {
+      "date": "2026-05-15",
+      "trades": 0,
+      "win_rate": 0.0,
+      "day_pnl": 0.0,
+      "max_drawdown": 0.0,
+      "qualifies": false,
+      "reason": "No trades today"
+    },
+    {
+      "date": "2026-05-15",
+      "trades": 0,
+      "win_rate": 0.0,
+      "day_pnl": 0.0,
+      "max_drawdown": 0.0,
+      "qualifies": false,
+      "reason": "No trades today"
+    }
+  ],
+  "criteria": {
+    "win_rate_min": 0.75,
+    "pnl_min": 300.0,
+    "drawdown_max": 0.03,
+    "trades_min": 3,
+    "days_required": 2
+  }
+}

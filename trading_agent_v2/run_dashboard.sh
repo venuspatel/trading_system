@@ -36,6 +36,7 @@ fi
 
 PORT=3001 npm start &
 FRONTEND_PID=$!
+sleep 3 && open http://localhost:3001 &
 
 echo ""
 echo "======================================================"

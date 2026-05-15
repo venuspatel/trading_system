@@ -946,7 +946,10 @@ async def stop_agent():
 
 @app.post("/api/agent/scan")
 async def force_scan():
-    if _agent: _agent.force_scan(); return {"status": "triggered"}
+    if _agent:
+        _agent.force_scan()
+        logger.info("[API] force_scan triggered INTRADAY")
+        return {"status": "triggered", "scan_type": "INTRADAY"}
     return {"error": "Agent not running"}
 
 @app.get("/api/decisions")

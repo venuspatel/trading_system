@@ -593,6 +593,124 @@ class PortfolioTracker:
         except Exception as e:
             logger.warning(f"[Portfolio] Offset heal failed: {e}")
 
+    def sync_eod_from_alpaca(self):
+        """
+        Fetch today's Alpaca closed orders and inject any missing
+        ClosedTrade records into portfolio.json.
+        Called once on every startup, after set_alpaca_credentials().
+        Safe to call multiple times — skips already-recorded exits.
+        """
+        if not self._alpaca_key or not self._alpaca_secret:
+            return
+        try:
+            import urllib.request as _ur
+            import json as _json
+            from datetime import datetime, timezone, timedelta
+
+            ET    = timezone(timedelta(hours=-4))
+            today = datetime.now(ET).strftime("%Y-%m-%d")
+            base  = (
+                "https://paper-api.alpaca.markets"
+                if getattr(self, "_alpaca_paper", True)
+                else "https://api.alpaca.markets"
+            )
+            headers = {
+                "APCA-API-KEY-ID":     self._alpaca_key,
+                "APCA-API-SECRET-KEY": self._alpaca_secret,
+            }
+            url    = (f"{base}/v2/orders"
+                      f"?status=closed&after={today}T00:00:00Z&limit=200&direction=asc")
+            req    = _ur.Request(url, headers=headers)
+            orders = _json.loads(_ur.urlopen(req, timeout=10).read())
+            sell_fills = [
+                o for o in orders
+                if (str(o.get("side", "")).lower() == "sell"
+                    and str(o.get("status", "")).lower() == "filled"
+                    and o.get("filled_avg_price"))
+            ]
+            if not sell_fills:
+                logger.info("[Portfolio] EOD recovery: no sell fills found today")
+                return
+            existing = set()
+            for t in self._trades:
+                et = self._trade_exit_et(t)
+                if et:
+                    existing.add((t.symbol.upper(), et.strftime("%Y-%m-%d")))
+            buy_fills = {
+                str(o.get("symbol", "")).upper(): o
+                for o in orders
+                if (str(o.get("side", "")).lower() == "buy"
+                    and str(o.get("status", "")).lower() == "filled"
+                    and o.get("filled_avg_price"))
+            }
+            try:
+                pos_req = _ur.Request(f"{base}/v2/positions", headers=headers)
+                alpaca_positions = {
+                    p["symbol"]: float(p["avg_entry_price"])
+                    for p in _json.loads(_ur.urlopen(pos_req, timeout=8).read())
+                }
+            except Exception:
+                alpaca_positions = {}
+            injected = 0
+            for o in sell_fills:
+                sym       = str(o.get("symbol", "")).upper()
+                filled_at = str(o.get("filled_at", "") or o.get("updated_at", ""))
+                if not filled_at:
+                    continue
+                try:
+                    filled_dt   = datetime.fromisoformat(
+                        filled_at.replace("Z", "+00:00")
+                    ).astimezone(ET)
+                    filled_date = filled_dt.strftime("%Y-%m-%d")
+                except Exception:
+                    continue
+                if (sym, filled_date) in existing:
+                    continue
+                exit_price = float(o.get("filled_avg_price", 0))
+                qty        = int(float(o.get("filled_qty", o.get("qty", 0))))
+                if exit_price <= 0 or qty <= 0:
+                    continue
+                entry_price = 0.0
+                if sym in buy_fills:
+                    entry_price = float(buy_fills[sym].get("filled_avg_price", 0))
+                elif sym in alpaca_positions:
+                    entry_price = alpaca_positions[sym]
+                if entry_price <= 0:
+                    logger.info(f"[Portfolio] EOD recovery: {sym} — no entry price, skipping")
+                    continue
+                pnl     = round((exit_price - entry_price) * qty, 2)
+                pnl_pct = round((exit_price - entry_price) / entry_price, 4)
+                order_type = str(o.get("type", "")).lower()
+                if "stop" in order_type:   exit_reason = "Stop loss (recovered)"
+                elif "limit" in order_type: exit_reason = "Take profit (recovered)"
+                else:                       exit_reason = "Alpaca EOD close (recovered)"
+                entry_time = (
+                    str(buy_fills[sym].get("filled_at", filled_at))
+                    if sym in buy_fills else filled_at
+                )
+                trade = ClosedTrade(
+                    symbol=sym, entry_price=entry_price, exit_price=exit_price,
+                    qty=qty, entry_time=entry_time, exit_time=filled_at,
+                    pnl=pnl, pnl_pct=pnl_pct, exit_reason=exit_reason,
+                    strategy="recovered", approach="",
+                )
+                self._trades.append(trade)
+                existing.add((sym, filled_date))
+                injected += 1
+                logger.info(
+                    f"[Portfolio] EOD recovery: injected {sym} "
+                    f"{'+'if pnl>=0 else ''}${pnl:.2f} ({exit_reason})"
+                )
+            if injected > 0:
+                self._rebuild_synthetic_curve()
+                self._save()
+                logger.info(f"[Portfolio] EOD recovery complete — {injected} trade(s) injected")
+            else:
+                logger.info("[Portfolio] EOD recovery: all trades already recorded")
+        except Exception as e:
+            logger.warning(f"[Portfolio] EOD recovery failed: {e}")
+
+
     def _load(self):
         if not os.path.exists(self.data_path):
             return
