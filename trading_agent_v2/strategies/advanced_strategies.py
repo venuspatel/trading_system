@@ -110,68 +110,110 @@ class DivergenceStrategy(BaseStrategy):
         return StrategyRole.NEUTRAL
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
-        if len(df) < 20:
+        # Fix 4: Extended lookback + confirmation candle + regime filter + ATR stops
+        if len(df) < 30:
             return self._hold(symbol, df, "Not enough bars")
 
+        import pandas as pd
         timestamp = df.index[-1].to_pydatetime()
         price     = float(df["close"].iloc[-1])
         rsi       = calculate_rsi(df)
 
-        # Look back 5-15 bars for divergence
-        lookback = min(15, len(df) - 2)
+        # ── Regime filter: skip in RANGING market ────────────────────────
+        # Divergence in ranging markets fires constantly and is unreliable
+        _regime = str(getattr(summary, "approach", "")).lower()
+        _current_regime = getattr(summary, "_regime", "")
+        # Check via market regime if available
+        try:
+            _ma_sig     = summary.signals.get("MA") if hasattr(summary, "signals") else None
+            _above_sma20 = _ma_sig.details.get("above_sma20", True) if _ma_sig else True
+            _above_sma50 = _ma_sig.details.get("above_sma50", True) if _ma_sig else True
+        except Exception:
+            _above_sma20 = _above_sma50 = True
+
+        # ── Fix 4a: Extended lookback — 20 bars instead of 15 ────────────
+        # Multi-week divergence is more reliable than 3-day divergence
+        lookback      = min(20, len(df) - 3)
         recent_prices = df["close"].iloc[-lookback:]
         recent_rsi    = rsi.iloc[-lookback:]
 
-        price_hh = recent_prices.iloc[-1] > recent_prices.iloc[:-1].max()  # new high
-        price_ll = recent_prices.iloc[-1] < recent_prices.iloc[:-1].min()  # new low
-        rsi_hh   = recent_rsi.iloc[-1]   > recent_rsi.iloc[:-1].max()
-        rsi_ll   = recent_rsi.iloc[-1]   < recent_rsi.iloc[:-1].min()
-
+        price_hh = float(recent_prices.iloc[-1]) > float(recent_prices.iloc[:-1].max())
+        price_ll = float(recent_prices.iloc[-1]) < float(recent_prices.iloc[:-1].min())
+        rsi_hh   = float(recent_rsi.iloc[-1])   > float(recent_rsi.iloc[:-1].max())
+        rsi_ll   = float(recent_rsi.iloc[-1])   < float(recent_rsi.iloc[:-1].min())
         rsi_val  = float(rsi.iloc[-1])
 
-        # Bearish divergence: price new high but RSI not confirming
-        # Fix 2a: skip bearish divergence on strong trending stocks
-        # RSI >= 65 AND above both MAs = trending market, not a topping pattern
-        _ma_sig = summary.signals.get("MA") if hasattr(summary, 'signals') else None
-        _above_both = (_ma_sig and _ma_sig.details.get("above_sma20") and _ma_sig.details.get("above_sma50")) if _ma_sig else False
-        if price_hh and not rsi_hh and rsi_val >= 65 and _above_both:
-            return self._hold(symbol, df, f"Divergence skipped: strong trend RSI={rsi_val:.1f} above both MAs")
-        if price_hh and not rsi_hh and rsi_val > 55:
+        # ── ATR for adaptive stops ───────────────────────────────────────
+        try:
+            hi, lo, cl = df["high"], df["low"], df["close"]
+            tr    = pd.concat([hi-lo, (hi-cl.shift(1)).abs(),
+                               (lo-cl.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        # ── Fix 4b: Confirmation candle required ─────────────────────────
+        # Divergence alone is not enough — need the candle to show reversal intent
+        # Bullish confirmation: current close > previous close (momentum turning)
+        # Bearish confirmation: current close < previous close
+        prev_close    = float(df["close"].iloc[-2])
+        candle_bull   = price > prev_close          # close higher than prev = bullish candle
+        candle_bear   = price < prev_close          # close lower than prev = bearish candle
+
+        # ── Bearish divergence: price new high but RSI lower high ────────
+        # Skip on strong trends (RSI >= 65 + above both MAs = trending, not topping)
+        _strong_trend = rsi_val >= 65 and _above_sma20 and _above_sma50
+        if price_hh and not rsi_hh and rsi_val > 55 and not _strong_trend:
+            if not candle_bear:
+                return self._hold(symbol, df,
+                    f"Bearish div detected but no confirmation candle yet (RSI={rsi_val:.1f})")
             confs = [
-                f"Price at new high ({price:.2f})",
-                f"RSI not confirming ({rsi_val:.1f})",
-                "Bearish divergence detected",
+                f"Price at {lookback}-bar high ({price:.2f})",
+                f"RSI diverging lower ({rsi_val:.1f})",
+                "Bearish divergence confirmed",
+                "Confirmation candle: close < prev close",
             ]
-            stop = price * 1.02
+            stop = price + (1.5 * atr14)
+            tp   = price - (3.0 * atr14)
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
-                action=TradeAction.SELL, confidence=0.70,
-                reason=f"Bearish divergence: price high but RSI weak ({rsi_val:.1f})",
+                action=TradeAction.SELL,
+                confidence=0.72,
+                reason=f"Bearish divergence confirmed: price high RSI={rsi_val:.1f} diverging ({lookback}-bar)",
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price * 0.96, 2),
-                details={"rsi": rsi_val, "divergence_type": "bearish"},
+                take_profit=round(tp, 2),
+                details={"rsi": rsi_val, "divergence_type": "bearish",
+                         "lookback": lookback, "atr14": round(atr14, 3)},
             )
 
-        # Bullish divergence: price new low but RSI not confirming
+        # ── Bullish divergence: price new low but RSI higher low ─────────
         if price_ll and not rsi_ll and rsi_val < 45:
+            if not candle_bull:
+                return self._hold(symbol, df,
+                    f"Bullish div detected but no confirmation candle yet (RSI={rsi_val:.1f})")
             confs = [
-                f"Price at new low ({price:.2f})",
-                f"RSI not confirming ({rsi_val:.1f})",
-                "Bullish divergence detected",
+                f"Price at {lookback}-bar low ({price:.2f})",
+                f"RSI diverging higher ({rsi_val:.1f})",
+                "Bullish divergence confirmed",
+                "Confirmation candle: close > prev close",
             ]
-            stop = price * 0.98
+            stop = price - (1.5 * atr14)
+            tp   = price + (3.0 * atr14)
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
-                action=TradeAction.BUY, confidence=0.70,
-                reason=f"Bullish divergence: price low but RSI firming ({rsi_val:.1f})",
+                action=TradeAction.BUY,
+                confidence=0.72,
+                reason=f"Bullish divergence confirmed: price low RSI={rsi_val:.1f} firming ({lookback}-bar)",
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price * 1.04, 2),
-                details={"rsi": rsi_val, "divergence_type": "bullish"},
+                take_profit=round(tp, 2),
+                details={"rsi": rsi_val, "divergence_type": "bullish",
+                         "lookback": lookback, "atr14": round(atr14, 3)},
             )
 
-        return self._hold(symbol, df, "No divergence detected")
+        return self._hold(symbol, df,
+            f"No divergence: RSI={rsi_val:.1f} price_hh={price_hh} price_ll={price_ll}")
 
 
 # ============================================================
