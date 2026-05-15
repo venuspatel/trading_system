@@ -284,8 +284,8 @@ class FibonacciStrategy(BaseStrategy):
     def role(self) -> str:
         return StrategyRole.NEUTRAL
 
-    def _find_swing(self, df, window=10):
-        """Find the most recent significant swing high and low."""
+    def _find_swing(self, df, window=20):
+        # Fix 13a: Window 10 → 20 bars for more reliable multi-week swings
         highs = df["high"].values
         lows  = df["low"].values
         n     = len(df)
@@ -304,9 +304,11 @@ class FibonacciStrategy(BaseStrategy):
         return swing_high, swing_low
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
-        if len(df) < 30:
-            return self._hold(symbol, df, "Not enough bars")
+        # Fix 13: Swing quality + confluence + RSI gate + ATR stops
+        if len(df) < 50:
+            return self._hold(symbol, df, "Not enough bars for Fibonacci")
 
+        import pandas as pd
         price     = float(df["close"].iloc[-1])
         timestamp = df.index[-1].to_pydatetime()
 
@@ -317,40 +319,115 @@ class FibonacciStrategy(BaseStrategy):
         sh_idx, sh_price = swing_high
         sl_idx, sl_price = swing_low
 
+        # Fix 13b: Minimum swing size — 5% move over 20+ bars
+        # Tiny swings produce meaningless Fib levels
+        move = sh_price - sl_price
+        swing_pct  = move / sl_price if sl_price > 0 else 0
+        swing_bars = abs(sh_idx - sl_idx)
+        if swing_pct < 0.05 or swing_bars < 20:
+            return self._hold(symbol, df,
+                f"Swing too small: {swing_pct:.1%} over {swing_bars} bars "
+                f"(need 5%+ over 20+ bars)")
+
         candle_sig = summary.signals.get("CANDLE")
         rsi_sig    = summary.signals.get("RSI")
+        ma_sig     = summary.signals.get("MA")
+        sr_sig     = summary.signals.get("SR")
         rsi_val    = rsi_sig.details.get("rsi", 50) if rsi_sig else 50
 
-        # Uptrend retracement: swing low came before swing high
+        # ── ATR for stops ─────────────────────────────────────────────────
+        try:
+            hi, lo, cl = df["high"], df["low"], df["close"]
+            tr    = pd.concat([hi-lo, (hi-cl.shift(1)).abs(),
+                               (lo-cl.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        # ── Uptrend retracement: swing low before swing high ──────────────
         if sl_idx < sh_idx:
-            move   = sh_price - sl_price
             levels = {f"{lvl*100:.1f}%": sh_price - move * lvl
                       for lvl in self.FIB_LEVELS}
 
             for label, fib_price in levels.items():
-                if abs(price - fib_price) / price < 0.01:    # within 1%
-                    confs = [f"At {label} Fibonacci ({fib_price:.2f})",
-                             f"Uptrend retracement"]
-                    if candle_sig and candle_sig.direction == SignalDirection.BUY:
-                        confs.append(f"Candle confirmation: {candle_sig.details.get('pattern')}")
-                    if rsi_val < 50:
-                        confs.append(f"RSI supportive ({rsi_val:.1f})")
+                proximity = abs(price - fib_price) / price
+                if proximity > 0.015:   # within 1.5%
+                    continue
 
-                    confidence = 0.60 + len(confs) * 0.07
-                    stop = fib_price * 0.985
-                    return TradeSignal(
-                        strategy=self.name, symbol=symbol, timestamp=timestamp,
-                        action=TradeAction.BUY,
-                        confidence=min(confidence, 0.90),
-                        reason=f"Fib retracement to {label} at ${fib_price:.2f}",
-                        confirmations=confs,
-                        stop_loss=round(stop, 2),
-                        take_profit=round(sh_price, 2),
-                        details={"fib_level": label, "fib_price": fib_price,
-                                 "swing_high": sh_price, "swing_low": sl_price},
-                    )
+                confs = [
+                    f"At {label} Fib retracement (${fib_price:.2f})",
+                    f"Swing: ${sl_price:.2f} → ${sh_price:.2f} (+{swing_pct:.1%}, {swing_bars}bars)",
+                ]
 
-        return self._hold(symbol, df, "Price not at Fibonacci level")
+                # Fix 13c: RSI gate — must be < 50 at retracement level
+                if rsi_val >= 50:
+                    return self._hold(symbol, df,
+                        f"Fib {label} level but RSI={rsi_val:.1f} >= 50 — not oversold enough")
+
+                # Fix 13d: Confluence check — Fib level near a MA or S/R
+                confluence = False
+                ma_vals = []
+                if ma_sig:
+                    for ma_key in ("sma_20", "sma_50", "sma_200"):
+                        mv = ma_sig.details.get(ma_key)
+                        if mv and abs(fib_price - mv) / fib_price < 0.01:
+                            confs.append(f"Confluence with {ma_key} (${mv:.2f})")
+                            confluence = True
+                if sr_sig:
+                    supports = sr_sig.details.get("support_levels", [])
+                    for s in supports:
+                        if abs(fib_price - s) / fib_price < 0.015:
+                            confs.append(f"Confluence with support ${s:.2f}")
+                            confluence = True
+
+                if not confluence:
+                    confs.append("No MA/S/R confluence — lower confidence")
+
+                if candle_sig and hasattr(candle_sig, 'direction'):
+                    try:
+                        from indicators.base import SignalDirection
+                        if candle_sig.direction == SignalDirection.BUY:
+                            confs.append(f"Candle: {candle_sig.details.get('pattern','bullish')}")
+                    except Exception:
+                        pass
+
+                if rsi_val < 45:
+                    confs.append(f"RSI oversold ({rsi_val:.1f})")
+
+                # Confidence: base + confluence boost + candle + RSI
+                base_conf  = 0.62 if confluence else 0.52
+                conf_boost = len([c for c in confs if "Confluence" in c]) * 0.05
+                rsi_boost  = 0.05 if rsi_val < 40 else 0.0
+                confidence = min(base_conf + conf_boost + rsi_boost, 0.88)
+
+                stop = price - (1.5 * atr14)
+                tp   = sh_price   # target: back to swing high
+
+                return TradeSignal(
+                    strategy=self.name, symbol=symbol, timestamp=timestamp,
+                    action=TradeAction.BUY,
+                    confidence=round(confidence, 3),
+                    reason=(f"Fib {label} at ${fib_price:.2f} "
+                            f"RSI={rsi_val:.1f} "
+                            f"confluence={confluence}"),
+                    confirmations=confs,
+                    stop_loss=round(stop, 2),
+                    take_profit=round(tp, 2),
+                    details={
+                        "fib_level":   label,
+                        "fib_price":   round(fib_price, 2),
+                        "swing_high":  round(sh_price, 2),
+                        "swing_low":   round(sl_price, 2),
+                        "swing_pct":   round(swing_pct*100, 1),
+                        "swing_bars":  swing_bars,
+                        "confluence":  confluence,
+                        "atr14":       round(atr14, 3),
+                    },
+                )
+
+        return self._hold(symbol, df,
+            f"No Fib level hit: swing {swing_pct:.1%}/{swing_bars}bars "
+            f"price=${price:.2f}")
 
 
 # ============================================================

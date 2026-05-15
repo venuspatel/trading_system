@@ -82,33 +82,98 @@ class EarningsMomentumStrategy(BaseStrategy):
         if gap_bar is None:
             return self._hold(symbol, df, "No earnings gap detected")
 
+        # Fix 12: EPS surprise magnitude + gap-fill detection + ATR stops
+
+        # ── Fix 12a: ATR for adaptive stops ──────────────────────────────
+        try:
+            hi, lo, cl = df["high"], df["low"], df["close"]
+            tr    = pd.concat([hi-lo, (hi-cl.shift(1)).abs(),
+                               (lo-cl.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
         # Check price is still holding above gap open
         gap_open_price = float(open_.iloc[gap_bar])
+        gap_close_price = float(close.iloc[gap_bar])
         gap_hold_pct   = (price - gap_open_price) / gap_open_price
+
+        # ── Fix 12b: Gap-fill detection ───────────────────────────────────
+        # If price has filled back to pre-gap level, the move is over
+        gap_day_idx   = gap_bar
+        prev_close_before_gap = float(close.iloc[gap_day_idx - 1]) if abs(gap_day_idx) < len(close) else gap_open_price
+        gap_filled    = price < prev_close_before_gap * 1.005  # within 0.5% of pre-gap close = filled
+
+        if gap_filled:
+            return TradeSignal(
+                symbol=symbol, strategy=self.name,
+                action=TradeAction.SELL,
+                confidence=0.75, timestamp=timestamp,
+                reason=f"Earnings gap FILLED — price ${price:.2f} back to pre-gap ${prev_close_before_gap:.2f}",
+                stop_loss=round(price + atr14, 2),
+                take_profit=round(price - (2 * atr14), 2),
+            )
 
         if gap_hold_pct < -self.hold_threshold:
             return TradeSignal(
                 symbol=symbol, strategy=self.name,
                 action=TradeAction.SELL,
                 confidence=0.70, timestamp=timestamp,
-                reason=f"Earnings gap failed — price {gap_hold_pct*100:.1f}% below gap open",
+                reason=f"Earnings gap failed — {gap_hold_pct*100:.1f}% below gap open ${gap_open_price:.2f}",
+                stop_loss=round(price + atr14, 2),
+                take_profit=round(price - (2 * atr14), 2),
             )
 
-        post_gap_momentum = (price - float(close.iloc[gap_bar])) / max(float(close.iloc[gap_bar]), 0.01)
+        post_gap_momentum = (price - gap_close_price) / max(gap_close_price, 0.01)
         bars_since_gap    = abs(gap_bar)
 
-        # Confidence scales with gap size + continuation + volume
-        confidence = min(0.90, 0.55 + min(0.15, gap_pct*2) + min(0.10, post_gap_momentum*2))
+        # ── Fix 12c: EPS surprise magnitude boost ─────────────────────────
+        # Try to get EPS surprise from news sentiment on summary
+        # Larger gap = larger implied beat = higher confidence
+        # Gap >3% = small beat, >6% = strong beat, >10% = blowout
+        eps_boost = 0.0
+        if gap_pct >= 0.10:
+            eps_boost = 0.12   # blowout: >10% gap
+        elif gap_pct >= 0.06:
+            eps_boost = 0.08   # strong: 6-10% gap
+        elif gap_pct >= 0.03:
+            eps_boost = 0.04   # normal: 3-6% gap
+
+        # Volume strength boost
+        vol_boost = min(0.08, (gap_vol_mult - self.volume_mult) * 0.02)
+
+        # Post-gap continuation boost
+        cont_boost = min(0.06, post_gap_momentum * 1.5) if post_gap_momentum > 0 else 0.0
+
+        # Recency penalty — gaps older than 10 bars are stale
+        recency_penalty = min(0.10, (bars_since_gap - 5) * 0.01) if bars_since_gap > 5 else 0.0
+
+        confidence = min(0.92,
+            0.55 + eps_boost + vol_boost + cont_boost - recency_penalty)
+
+        # Stops: below gap open (strong support) or 1.5x ATR whichever is tighter
+        atr_stop  = price - (1.5 * atr14)
+        gap_stop  = gap_open_price * 0.99   # just below gap open = key support
+        stop      = max(atr_stop, gap_stop)  # tighter of the two
+        tp        = price + (3.0 * atr14)
 
         return TradeSignal(
             symbol=symbol, strategy=self.name,
             action=TradeAction.BUY,
-            confidence=confidence, timestamp=timestamp,
-            reason=(f"Earnings gap +{gap_pct*100:.1f}% ({int(gap_vol_mult)}x vol) "
-                    f"{bars_since_gap}d ago · "
-                    f"Post-gap: {post_gap_momentum*100:.1f}% · holding gap ✓"),
-            details={"gap_pct": round(gap_pct*100,2),
-                     "gap_vol_mult": round(gap_vol_mult,1),
-                     "post_gap_momentum": round(post_gap_momentum*100,2),
-                     "bars_since_gap": bars_since_gap},
+            confidence=round(confidence, 3),
+            timestamp=timestamp,
+            reason=(f"Earnings gap +{gap_pct*100:.1f}% ({gap_vol_mult:.1f}x vol) "
+                    f"{bars_since_gap}d ago · post-gap {post_gap_momentum*100:.1f}% · "
+                    f"holding ✓ eps_boost={eps_boost:.2f}"),
+            stop_loss=round(stop, 2),
+            take_profit=round(tp, 2),
+            details={
+                "gap_pct":           round(gap_pct*100, 2),
+                "gap_vol_mult":      round(gap_vol_mult, 1),
+                "post_gap_momentum": round(post_gap_momentum*100, 2),
+                "bars_since_gap":    bars_since_gap,
+                "eps_boost":         eps_boost,
+                "gap_filled":        False,
+                "atr14":             round(atr14, 3),
+            },
         )
