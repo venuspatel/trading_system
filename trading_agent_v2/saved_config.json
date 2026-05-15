@@ -19,6 +19,7 @@
   "earnings_blackout_days": 3,
   "regime_filter": true,
   "watchlist": [
+    "SPY",
     "AAPL",
     "TSLA",
     "NVDA",

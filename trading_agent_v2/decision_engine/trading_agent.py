@@ -1123,6 +1123,8 @@ class TradingAgent:
                     summary.intraday_df = None
                 # Attach 1-min df to summary for Micro Momentum strategy
                 summary.micro_df = micro_data.get(symbol)
+                # Attach SPY df for relative strength calculation (Fix 2b)
+                summary.spy_df = watchlist_data.get("SPY") if symbol != "SPY" else None
                 report  = self._str_engine.evaluate(symbol, df, summary)
                 strategy_reports[symbol] = report
             except Exception as exc:
