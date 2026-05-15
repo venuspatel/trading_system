@@ -68,6 +68,7 @@ class MicroMomentumStrategy(BaseStrategy):
 
     def _evaluate(self, symbol: str, daily_df: pd.DataFrame,
                   micro_df: pd.DataFrame) -> TradeSignal:
+        # Fix 15: Lower vol threshold + time filter + VWAP direction + stops
         close  = micro_df["close"]
         volume = micro_df["volume"] if "volume" in micro_df.columns else \
                  pd.Series([1]*len(close), index=close.index)
@@ -80,53 +81,125 @@ class MicroMomentumStrategy(BaseStrategy):
         timestamp  = daily_df.index[-1].to_pydatetime() if len(daily_df) > 0 \
                      else datetime.now(timezone.utc)
 
-        # ── Volume spike ──────────────────────────────────────────────
+        # Fix 15a: Time-of-day filter — only trade in prime scalping windows
+        # Avoid: first 15min (9:30-9:45 ET) = chaotic, last 30min (3:30-4PM) = dangerous
+        # Best windows: 9:45-11:30 AM and 2:00-3:30 PM ET
+        try:
+            from datetime import timezone as _tz, timedelta
+            ET  = _tz(timedelta(hours=-4))
+            now = datetime.now(ET)
+            et_hour   = now.hour
+            et_minute = now.minute
+            et_time   = et_hour * 60 + et_minute  # minutes since midnight ET
+
+            # Market open windows (ET):
+            # 9:45 AM = 585 min, 11:30 AM = 690 min
+            # 2:00 PM = 840 min, 3:30 PM = 930 min
+            in_morning  = 585 <= et_time <= 690
+            in_afternoon= 840 <= et_time <= 930
+            good_time   = in_morning or in_afternoon
+
+            if not good_time:
+                return self._hold(symbol, daily_df,
+                    f"Micro: outside scalp window (ET {et_hour:02d}:{et_minute:02d}) "
+                    f"— best: 9:45-11:30 or 2:00-3:30 PM")
+        except Exception:
+            good_time = True  # if time check fails, proceed
+
+        # ── Volume spike — Fix 15b: lower threshold 2.0x → 1.3x ──────
+        # Real institutional moves are 1.3-1.5x, not always 2x
         avg_vol   = float(volume.rolling(min(10, len(volume))).mean().iloc[-1])
         curr_vol  = float(volume.iloc[-1])
         vol_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
 
-        # ── Price acceleration — last 2 bars moving up ────────────────
+        # ── Price acceleration ────────────────────────────────────────
         move_2bar = (price - prev2) / prev2 if prev2 > 0 else 0.0
         move_1bar = (price - prev1) / prev1 if prev1 > 0 else 0.0
 
-        # ── Spread check (high-low of last bar as proxy) ──────────────
+        # ── Spread check ──────────────────────────────────────────────
         bar_spread = (float(high.iloc[-1]) - float(low.iloc[-1])) / price
         if bar_spread > self.max_spread_pct:
             return self._hold(symbol, daily_df,
                 f"Spread too wide ({bar_spread:.2%}) — skip micro entry")
 
-        # ── Momentum score ────────────────────────────────────────────
-        # Both volume AND price must confirm
-        vol_ok   = vol_ratio >= self.min_vol_spike
-        move_ok  = move_2bar >= self.min_price_move_pct
-        accel_ok = move_1bar > 0  # still moving up on last bar
+        # ── Fix 15c: VWAP direction filter ───────────────────────────
+        # Only scalp long when price is above VWAP (institutional bullish bias)
+        above_vwap = True
+        try:
+            tp_series  = (high + low + close) / 3
+            vwap_s     = (tp_series * volume).cumsum() / volume.cumsum()
+            vwap_val   = float(vwap_s.iloc[-1])
+            above_vwap = price > vwap_val
+        except Exception:
+            above_vwap = True
 
-        if vol_ok and move_ok and accel_ok:
-            confidence = min(0.95, 0.55 + (vol_ratio - 2.0) * 0.1 + move_2bar * 20)
+        # ── Fix 15d: Use effective threshold (1.3x instead of 2.0x) ──
+        effective_vol_spike = max(1.3, self.min_vol_spike * 0.65)
+        vol_ok   = vol_ratio >= effective_vol_spike
+        move_ok  = move_2bar >= self.min_price_move_pct
+        accel_ok = move_1bar > 0
+
+        if vol_ok and move_ok and accel_ok and above_vwap:
+            # ATR-based stop from daily bars
+            try:
+                hi_d = daily_df["high"] if "high" in daily_df.columns else daily_df["close"]
+                lo_d = daily_df["low"]  if "low"  in daily_df.columns else daily_df["close"]
+                cl_d = daily_df["close"]
+                tr_d = pd.concat([hi_d-lo_d, (hi_d-cl_d.shift(1)).abs(),
+                                  (lo_d-cl_d.shift(1)).abs()], axis=1).max(axis=1)
+                atr14 = float(tr_d.rolling(14).mean().iloc[-1])
+            except Exception:
+                atr14 = price * 0.005  # 0.5% fallback for scalp
+
+            # Tight scalp stops: 0.5x ATR for stop, 1x ATR for target
+            stop = price - (0.5 * atr14)
+            tp   = price + (1.0 * atr14)
+
+            confidence = min(0.90, 0.58 + (vol_ratio - effective_vol_spike) * 0.08
+                             + move_2bar * 15)
             return TradeSignal(
                 symbol     = symbol,
                 timestamp  = timestamp,
                 action     = TradeAction.BUY,
                 confidence = round(confidence, 3),
-                reason     = (f"Micro: vol={vol_ratio:.1f}x spike "
-                              f"price +{move_2bar:.2%} in 2 bars "
-                              f"accel={move_1bar:+.2%}"),
+                reason     = (f"Micro: vol={vol_ratio:.1f}x "
+                              f"+{move_2bar:.2%}/2bars "
+                              f"accel={move_1bar:+.2%} "
+                              f"above_vwap={above_vwap}"),
                 strategy   = self.name,
-                price      = price,
+                stop_loss  = round(stop, 2),
+                take_profit= round(tp, 2),
+                details    = {
+                    "vol_ratio":   round(vol_ratio, 2),
+                    "move_2bar":   round(move_2bar, 4),
+                    "move_1bar":   round(move_1bar, 4),
+                    "above_vwap":  above_vwap,
+                    "atr14":       round(atr14, 3),
+                },
             )
 
-        # ── Sell signal — momentum fading ─────────────────────────────
+        # ── Sell: momentum fading ─────────────────────────────────────
         if move_1bar < -self.min_price_move_pct and vol_ratio >= 1.5:
+            try:
+                hi_d = daily_df["high"] if "high" in daily_df.columns else daily_df["close"]
+                lo_d = daily_df["low"]  if "low"  in daily_df.columns else daily_df["close"]
+                cl_d = daily_df["close"]
+                tr_d = pd.concat([hi_d-lo_d, (hi_d-cl_d.shift(1)).abs(),
+                                  (lo_d-cl_d.shift(1)).abs()], axis=1).max(axis=1)
+                atr14 = float(tr_d.rolling(14).mean().iloc[-1])
+            except Exception:
+                atr14 = price * 0.005
             return TradeSignal(
-                symbol    = symbol,
-                timestamp = timestamp,
-                action    = TradeAction.SELL,
-                confidence= 0.65,
-                reason    = f"Micro: momentum fading {move_1bar:.2%} — exit",
-                strategy  = self.name,
-                price     = price,
+                symbol     = symbol,
+                timestamp  = timestamp,
+                action     = TradeAction.SELL,
+                confidence = 0.65,
+                reason     = f"Micro: fading {move_1bar:.2%} vol={vol_ratio:.1f}x",
+                strategy   = self.name,
+                stop_loss  = round(price + (0.5 * atr14), 2),
+                take_profit= round(price - (1.0 * atr14), 2),
             )
 
         return self._hold(symbol, daily_df,
-            f"Micro: vol={vol_ratio:.1f}x move={move_2bar:+.2%} "
-            f"(need {self.min_vol_spike}x + {self.min_price_move_pct:.1%})")
+            f"Micro: vol={vol_ratio:.1f}x(need {effective_vol_spike:.1f}x) "
+            f"move={move_2bar:+.2%} vwap={above_vwap}")
