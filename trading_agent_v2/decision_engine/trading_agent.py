@@ -1622,8 +1622,12 @@ class TradingAgent:
         return getattr(self, '_cached_news', {})
 
     def update_news_cache(self, news_data: dict):
-        """Update news sentiment cache from news fetcher."""
+        """Update news sentiment cache from news fetcher (Flag 1)."""
         self._cached_news = news_data
+        # Pass to config so conviction engine can read it each scan
+        if hasattr(self, 'config'):
+            self.config._news_cache = news_data
+        logger.info(f"[Agent] News sentiment updated: {len(news_data)} symbols")
 
     def last_conviction_breakdown(self) -> dict:
         """Return last conviction breakdown for dashboard."""

@@ -108,6 +108,18 @@ async def auto_restore_and_start():
         if _agent is not None and str(_agent.status).lower() == "idle":
             _agent.start()
             _log.info("[API] Agent auto-started from saved config ✓")
+        # Initialize news fetcher on startup (not just on /configure) — news_fetcher_startup
+        global _news_fetcher, _sentiment_eng
+        if _news_fetcher is None:
+            try:
+                _news_fetcher = NewsFetcher(
+                    alpaca_api_key    = app_cfg.alpaca_api_key,
+                    alpaca_secret_key = app_cfg.alpaca_secret_key,
+                )
+                _sentiment_eng = SentimentEngine(api_key=app_cfg.anthropic_api_key)
+                _log.info("[API] News fetcher initialized on startup ✓")
+            except Exception as _ne:
+                _log.warning(f"[API] News fetcher init failed: {_ne}")
             # Enable intraday mode using config interval
             import time as _time, threading as _th
             def _auto_intraday_restore():
@@ -1139,6 +1151,10 @@ async def refresh_news():
         scores    = _sentiment_eng.score_watchlist(news_map)
         _news_cache = {sym: s.to_dict() for sym, s in scores.items()}
         logger.info(f"[News] Refreshed {len(_news_cache)} symbols")
+        # Wire news sentiment into agent conviction engine (Flag 1)
+        if _agent and hasattr(_agent, "update_news_cache"):
+            _agent.update_news_cache(_news_cache)
+            logger.info(f"[News] Sentiment wired to conviction engine for {len(_news_cache)} symbols")
     threading.Thread(target=_fetch, daemon=True).start()
     return {"status": "refreshing"}
 

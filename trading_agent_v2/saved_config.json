@@ -79,6 +79,6 @@
     "atr_trailing_stops": false,
     "drawdown_circuit_breaker": false,
     "sector_concentration": false,
-    "news_sentiment": false
+    "news_sentiment": true
   }
 }
