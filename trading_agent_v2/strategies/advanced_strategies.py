@@ -335,16 +335,18 @@ class VolumeConfirmationStrategy(BaseStrategy):
         return StrategyRole.NEUTRAL
 
     def generate_signal(self, symbol, df, summary) -> TradeSignal:
+        # Fix 8: OBV slope + VWAP check + ATR stops + scaled confidence
         if len(df) < 22:
             return self._hold(symbol, df, "Not enough bars")
 
+        import pandas as pd
         price      = float(df["close"].iloc[-1])
         prev_price = float(df["close"].iloc[-2])
         price_chg  = (price - prev_price) / prev_price
         timestamp  = df.index[-1].to_pydatetime()
 
-        avg_vol  = float(df["volume"].rolling(20).mean().iloc[-1])
-        curr_vol = float(df["volume"].iloc[-1])
+        avg_vol   = float(df["volume"].rolling(20).mean().iloc[-1])
+        curr_vol  = float(df["volume"].iloc[-1])
         vol_ratio = curr_vol / avg_vol if avg_vol > 0 else 1.0
 
         ma_sig  = summary.signals.get("MA")
@@ -353,48 +355,134 @@ class VolumeConfirmationStrategy(BaseStrategy):
 
         if vol_ratio < self.volume_factor:
             return self._hold(symbol, df,
-                f"Volume not significant ({vol_ratio:.1f}x avg)")
+                f"Volume {vol_ratio:.1f}x < {self.volume_factor}x threshold")
 
-        confs = [f"Volume {vol_ratio:.1f}x average (institutional activity)"]
+        # ── Fix 8a: OBV slope over 10 bars (was 5 — too noisy) ──────────
+        # OBV rising = accumulation, falling = distribution
+        try:
+            obv       = (df["volume"] * df["close"].diff().apply(
+                            lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
+                         )).cumsum()
+            obv_slope = float(obv.diff(10).iloc[-1])   # 10-bar OBV change
+            obv_bull  = obv_slope > 0
+        except Exception:
+            obv_slope = 0.0
+            obv_bull  = True   # default pass
 
+        # ── Fix 8b: VWAP check — institutions buy below VWAP ────────────
+        # Use intraday VWAP if available, else calculate from daily bars
+        below_vwap = None
+        vwap_note  = ""
+        intraday   = getattr(summary, "intraday_df", None)
+        if intraday is not None and len(intraday) >= 10:
+            try:
+                tp     = (intraday["high"] + intraday["low"] + intraday["close"]) / 3
+                vwap   = (tp * intraday["volume"]).cumsum() / intraday["volume"].cumsum()
+                vwap_v = float(vwap.iloc[-1])
+                below_vwap = price < vwap_v
+                vwap_note  = f" VWAP=${vwap_v:.2f}"
+            except Exception:
+                below_vwap = None
+        else:
+            # Fallback: simple VWAP from daily bars (last 20)
+            try:
+                d = df.tail(20)
+                tp     = (d["high"] + d["low"] + d["close"]) / 3
+                vwap_v = float((tp * d["volume"]).sum() / d["volume"].sum())
+                below_vwap = price < vwap_v
+                vwap_note  = f" VWAP~${vwap_v:.2f}"
+            except Exception:
+                below_vwap = None
+
+        # ── Fix 8c: ATR for adaptive stops ──────────────────────────────
+        try:
+            hi, lo, cl = df["high"], df["low"], df["close"]
+            tr    = pd.concat([hi-lo, (hi-cl.shift(1)).abs(),
+                               (lo-cl.shift(1)).abs()], axis=1).max(axis=1)
+            atr14 = float(tr.rolling(14).mean().iloc[-1])
+        except Exception:
+            atr14 = price * 0.01
+
+        confs = [f"Volume {vol_ratio:.1f}x avg"]
+
+        # ── BUY: price up + volume surge ─────────────────────────────────
         if price_chg >= self.price_move:
             if ma_sig and ma_sig.details.get("above_sma20", False):
                 confs.append("above SMA20")
             if rsi_val < 70:
-                confs.append(f"RSI not overbought ({rsi_val:.1f})")
+                confs.append(f"RSI={rsi_val:.1f} not overbought")
+            if obv_bull:
+                confs.append(f"OBV accumulating (10-bar)")
+            if below_vwap is True:
+                confs.append(f"below VWAP — institutional buy zone{vwap_note}")
 
-            confidence = min(0.55 + vol_ratio * 0.06 + len(confs) * 0.05, 0.90)
-            stop = price * 0.98
+            # Fix 8d: Scaled confidence by vol ratio tier
+            if vol_ratio >= 4.0:   base = 0.82
+            elif vol_ratio >= 3.0: base = 0.76
+            elif vol_ratio >= 2.0: base = 0.68
+            else:                  base = 0.60
+
+            # OBV and VWAP boosts
+            obv_boost  = 0.05 if obv_bull    else -0.05
+            vwap_boost = 0.04 if below_vwap  else  0.0
+
+            confidence = min(base + obv_boost + vwap_boost, 0.92)
+            stop = price - (1.5 * atr14)
+            tp   = price + (3.0 * atr14)
 
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
                 action=TradeAction.BUY,
-                confidence=confidence,
-                reason=f"Volume surge ({vol_ratio:.1f}x) with +{price_chg*100:.1f}% price move",
+                confidence=round(confidence, 3),
+                reason=(f"Vol surge {vol_ratio:.1f}x +{price_chg*100:.1f}% "
+                        f"OBV={'up' if obv_bull else 'dn'}{vwap_note}"),
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price * 1.04, 2),
-                details={"volume_ratio": round(vol_ratio, 2), "price_change": round(price_chg, 4)},
+                take_profit=round(tp, 2),
+                details={
+                    "volume_ratio": round(vol_ratio, 2),
+                    "price_change": round(price_chg, 4),
+                    "obv_slope":    round(obv_slope, 0),
+                    "below_vwap":   below_vwap,
+                    "atr14":        round(atr14, 3),
+                },
             )
 
+        # ── SELL: price down + volume surge ──────────────────────────────
         if price_chg <= -self.price_move:
-            confs.append(f"Price down {abs(price_chg)*100:.1f}%")
-            confidence = min(0.55 + vol_ratio * 0.06, 0.85)
-            stop = price * 1.02
+            confs.append(f"Price -{abs(price_chg)*100:.1f}%")
+            if not obv_bull:
+                confs.append("OBV distributing")
+
+            if vol_ratio >= 3.0:   base = 0.76
+            elif vol_ratio >= 2.0: base = 0.68
+            else:                  base = 0.60
+
+            obv_boost  = 0.05 if not obv_bull else -0.03
+            confidence = min(base + obv_boost, 0.88)
+            stop = price + (1.5 * atr14)
+            tp   = price - (3.0 * atr14)
 
             return TradeSignal(
                 strategy=self.name, symbol=symbol, timestamp=timestamp,
                 action=TradeAction.SELL,
-                confidence=confidence,
-                reason=f"Volume surge ({vol_ratio:.1f}x) with -{abs(price_chg)*100:.1f}% price drop",
+                confidence=round(confidence, 3),
+                reason=(f"Vol surge {vol_ratio:.1f}x -{abs(price_chg)*100:.1f}% "
+                        f"OBV={'dn' if not obv_bull else 'up'}{vwap_note}"),
                 confirmations=confs,
                 stop_loss=round(stop, 2),
-                take_profit=round(price * 0.96, 2),
-                details={"volume_ratio": round(vol_ratio, 2), "price_change": round(price_chg, 4)},
+                take_profit=round(tp, 2),
+                details={
+                    "volume_ratio": round(vol_ratio, 2),
+                    "price_change": round(price_chg, 4),
+                    "obv_slope":    round(obv_slope, 0),
+                    "atr14":        round(atr14, 3),
+                },
             )
 
         return self._hold(symbol, df,
-            f"Volume surge ({vol_ratio:.1f}x) but no significant price move")
+            f"Vol {vol_ratio:.1f}x but price move {price_chg*100:.1f}% "
+            f"< {self.price_move*100:.1f}% threshold")
 
 
 # ============================================================
