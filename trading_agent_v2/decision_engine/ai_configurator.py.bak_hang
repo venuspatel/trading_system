@@ -1,0 +1,591 @@
+# -*- coding: utf-8 -*-
+"""
+AIConfigurator — Fully autonomous self-configuration engine
+------------------------------------------------------------
+Goal: maximum profit. Claude decides everything — when to fire,
+what to change, how aggressive to be. No human trigger needed.
+
+Hooks into the scan loop. After every cycle it checks signals.
+If signals cross thresholds it calls Claude, gets a decision,
+applies the diff instantly via agent.reconfigure().
+
+Cooldown prevents thrashing. Hard bounds prevent runaway params.
+Full audit log + per-entry revert always available.
+"""
+
+import json
+import logging
+import os
+import threading
+import time
+import urllib.request
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+MODEL = "claude-sonnet-4-6"
+MAX_TOKENS = 1200
+
+# ── Hard bounds — Claude cannot exceed these regardless of reasoning ──────────
+PARAM_BOUNDS = {
+    "stop_loss_pct":        (0.0010, 0.0050),
+    "take_profit_pct":      (0.0020, 0.0100),
+    "min_conviction_score": (1.0,    3.0),
+    "max_open_positions":   (3,      15),
+    "intraday_interval_min":(1,      5),
+    "min_risk_reward":      (1.2,    4.0),
+    "min_strategies_agree": (1,      4),
+}
+
+FROZEN_PARAMS = {"approach", "paper_trading", "trading_timeframe"}
+
+RECONFIG_COOLDOWN_SEC  = 30 * 60
+WATCHLIST_COOLDOWN_SEC = 4  * 3600
+EMERGENCY_COOLDOWN_SEC = 10 * 60
+
+
+@dataclass
+class ConfigSnapshot:
+    entry_id:            str
+    timestamp:           str
+    trigger:             str
+    decision:            str
+    reasoning:           str
+    changes:             Dict[str, Any]
+    config_before:       Dict[str, Any]
+    config_after:        Dict[str, Any]
+    performance_at_time: Dict[str, Any]
+    new_watchlist:       Optional[List[str]] = None
+
+
+@dataclass
+class SignalPacket:
+    win_rate:              float = 0.0
+    day_pnl:               float = 0.0
+    day_pnl_pct:           float = 0.0
+    total_pnl:             float = 0.0
+    consecutive_losses:    int   = 0
+    consecutive_wins:      int   = 0
+    total_trades_today:    int   = 0
+    avg_win:               float = 0.0
+    avg_loss:              float = 0.0
+    profit_factor:         float = 0.0
+    regime:                str   = "UNKNOWN"
+    spy_trend:             str   = "UNKNOWN"
+    spy_rsi:               float = 50.0
+    vix_est:               float = 20.0
+    current_config:        Dict  = field(default_factory=dict)
+    top_tickers_by_streak: List[Dict] = field(default_factory=list)
+    open_positions:        List[str]  = field(default_factory=list)
+    equity:                float = 1_000_000.0
+    cycle_count:           int   = 0
+    # Pre-market + news + earnings (populated at startup/premarket scan)
+    premarket_scores:      List[Dict] = field(default_factory=list)
+    news_sentiment:        Dict       = field(default_factory=dict)
+    earnings_today:        List[str]  = field(default_factory=list)
+    earnings_tomorrow:     List[str]  = field(default_factory=list)
+    is_premarket_scan:     bool       = False
+
+
+class AIConfigurator:
+    """
+    Fully autonomous AI-powered configuration + watchlist engine.
+    Attach to a TradingAgent. Call evaluate() after every scan cycle.
+    """
+
+    def __init__(
+        self,
+        agent=None,
+        config=None,
+        portfolio=None,
+        config_log=None,
+        ticker_universe=None,
+        api_key: Optional[str] = None,
+        log_path: str = "logs/ai_config_log.json",
+    ):
+        self._agent           = agent
+        self._config          = config
+        self._portfolio       = portfolio
+        self._config_log      = config_log
+        self._ticker_universe = ticker_universe
+        self._api_key         = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        self._log_path        = log_path
+        self._enabled         = bool(self._api_key)
+
+        self._last_reconfig_time  = 0.0
+        self._last_watchlist_time = 0.0
+        self._lock                = threading.Lock()
+        self._eval_count          = 0
+
+        if self._enabled:
+            logger.info("[AIConfig] Fully autonomous mode active — Claude owns all config decisions")
+        else:
+            logger.warning("[AIConfig] No ANTHROPIC_API_KEY — disabled")
+
+    # ── Public API ────────────────────────────────────────────────────────────
+
+    def evaluate(self, force: bool = False) -> Optional[ConfigSnapshot]:
+        """Called after every scan cycle. Claude decides whether to act."""
+        if not self._enabled:
+            return None
+        with self._lock:
+            self._eval_count += 1
+            now = time.time()
+            # force=True always runs — resets cooldown so it fires immediately
+            if force:
+                self._last_reconfig_time = 0.0
+            signals = self._build_signal_packet()
+            is_emergency = self._is_emergency(signals)
+            cooldown = EMERGENCY_COOLDOWN_SEC if is_emergency else RECONFIG_COOLDOWN_SEC
+            if not force and not is_emergency and (now - self._last_reconfig_time) < cooldown:
+                return None
+            try:
+                snapshot = self._call_claude_and_apply(signals, is_emergency)
+                if snapshot and snapshot.decision != "hold":
+                    self._last_reconfig_time = now
+                return snapshot
+            except Exception as e:
+                logger.error(f"[AIConfig] Evaluation failed: {e}")
+                return None
+
+    def force_watchlist_refresh(self) -> Optional[ConfigSnapshot]:
+        if not self._enabled:
+            return None
+        with self._lock:
+            signals = self._build_signal_packet()
+            return self._call_claude_and_apply(signals, is_emergency=True)
+
+    def revert(self, entry_id: str) -> bool:
+        if not self._config_log:
+            return False
+        entry = self._config_log.get_entry(entry_id)
+        if not entry:
+            logger.error(f"[AIConfig] Revert failed — entry {entry_id} not found")
+            return False
+        try:
+            self._apply_config_dict(entry["config_before"])
+            logger.info(f"[AIConfig] Reverted to state before {entry_id}")
+            return True
+        except Exception as e:
+            logger.error(f"[AIConfig] Revert failed: {e}")
+            return False
+
+    def get_history(self, limit: int = 50) -> List[Dict]:
+        if self._config_log:
+            return self._config_log.recent(limit)
+        return []
+
+    # ── Signal building ───────────────────────────────────────────────────────
+
+
+    # ── Pre-market + news + earnings helpers ──────────────────────────
+
+    def _fetch_premarket_scores(self) -> List[Dict]:
+        """Pull scores from PremarketScanner if available."""
+        try:
+            scanner = getattr(self._agent, '_premarket_scanner', None)
+            if not scanner:
+                return []
+            watchlist = getattr(self._config, 'watchlist', []) or []
+            if not watchlist:
+                return []
+            scores = scanner.scan(watchlist, top_n=len(watchlist))
+            return [
+                {
+                    "symbol":    s.symbol,
+                    "heat_score": s.heat_score,
+                    "gap_pct":   s.gap_pct,
+                    "vol_ratio": s.vol_ratio,
+                    "rsi":       s.rsi,
+                    "reason":    s.reason,
+                }
+                for s in (scores or [])
+            ]
+        except Exception as e:
+            logger.debug(f"[AIConfig] Pre-market scores failed: {e}")
+            return []
+
+    def _fetch_news_sentiment(self) -> Dict:
+        """Fetch news sentiment for watchlist via NewsFetcher + SentimentEngine."""
+        try:
+            import os as _os
+            from news import NewsFetcher, SentimentEngine
+            api_key    = _os.environ.get("ALPACA_API_KEY",    _os.environ.get("APCA_API_KEY_ID", ""))
+            api_secret = _os.environ.get("ALPACA_SECRET_KEY", _os.environ.get("APCA_API_SECRET_KEY", ""))
+            fetcher  = NewsFetcher(alpaca_api_key=api_key, alpaca_secret_key=api_secret, max_articles=5)
+            engine   = SentimentEngine(api_key=self._api_key)
+            watchlist = getattr(self._config, 'watchlist', []) or []
+            if not watchlist:
+                return {}
+            # Only fetch top 15 to keep latency low
+            news_map  = fetcher.fetch_watchlist(watchlist[:15])
+            scores    = engine.score_watchlist(news_map)
+            result = {}
+            for sym, s in scores.items():
+                result[sym] = {
+                    "score":    getattr(s, 'score', 0.0),
+                    "signal":   getattr(s, 'signal', 'HOLD'),
+                    "grade":    getattr(s, 'grade', 'NEUTRAL'),
+                    "summary":  getattr(s, 'ai_summary', '')[:120],
+                }
+            return result
+        except Exception as e:
+            logger.debug(f"[AIConfig] News sentiment failed: {e}")
+            return {}
+
+    def _fetch_earnings_calendar(self) -> tuple:
+        """
+        Fetch earnings dates from Alpaca corporate actions API.
+        Returns (earnings_today, earnings_tomorrow) as lists of symbols.
+        """
+        try:
+            import urllib.request, json as _json, os as _os
+            from datetime import date, timedelta
+            api_key    = _os.environ.get("ALPACA_API_KEY",    _os.environ.get("APCA_API_KEY_ID", ""))
+            api_secret = _os.environ.get("ALPACA_SECRET_KEY", _os.environ.get("APCA_API_SECRET_KEY", ""))
+            if not api_key:
+                return [], []
+            today    = date.today().isoformat()
+            tomorrow = (date.today() + timedelta(days=1)).isoformat()
+            url = (f"https://data.alpaca.markets/v1beta1/corporate-actions"
+                   f"?types=earnings&start={today}&end={tomorrow}&limit=200")
+            req = urllib.request.Request(url, headers={
+                "APCA-API-KEY-ID":     api_key,
+                "APCA-API-SECRET-KEY": api_secret,
+            })
+            with urllib.request.urlopen(req, timeout=8) as r:
+                data = _json.loads(r.read())
+            items = data.get("corporate_actions", {}).get("earnings", [])
+            watchlist = set(getattr(self._config, 'watchlist', []) or [])
+            today_earners    = [i["symbol"] for i in items
+                                if i.get("date","") == today    and i.get("symbol") in watchlist]
+            tomorrow_earners = [i["symbol"] for i in items
+                                if i.get("date","") == tomorrow and i.get("symbol") in watchlist]
+            return today_earners, tomorrow_earners
+        except Exception as e:
+            logger.debug(f"[AIConfig] Earnings calendar failed: {e}")
+            return [], []
+
+
+    def _build_signal_packet(self) -> SignalPacket:
+        pkt = SignalPacket()
+        try:
+            if self._portfolio:
+                s = self._portfolio.stats
+                pkt.win_rate           = s.get("win_rate", 0.0)
+                pkt.day_pnl            = s.get("day_pnl", 0.0)
+                pkt.total_pnl          = s.get("total_pnl", 0.0)
+                pkt.total_trades_today = s.get("day_trades", 0)
+                pkt.avg_win            = s.get("avg_win", 0.0)
+                pkt.avg_loss           = s.get("avg_loss", 0.0)
+                pkt.profit_factor      = s.get("profit_factor", 0.0)
+                pkt.consecutive_losses = s.get("max_consec_losses", 0)
+        except Exception:
+            pass
+        try:
+            if self._agent and hasattr(self._agent, "_executor"):
+                acct   = self._agent._executor.get_account()
+                equity = float(acct.get("equity", 1_000_000))
+                start  = float(acct.get("last_equity", equity))
+                pkt.equity     = equity
+                pkt.day_pnl_pct = (equity - start) / start * 100 if start > 0 else 0.0
+        except Exception:
+            pass
+        try:
+            if self._agent and hasattr(self._agent, "_dec_engine"):
+                r = self._agent._dec_engine._current_regime
+                if r:
+                    pkt.regime    = getattr(r, "regime", "UNKNOWN")
+                    pkt.spy_trend = getattr(r, "spy_trend", "UNKNOWN")
+                    pkt.spy_rsi   = getattr(r, "spy_rsi", 50.0)
+                    pkt.vix_est   = getattr(r, "vix_level", 20.0)
+        except Exception:
+            pass
+        try:
+            if self._config:
+                pkt.current_config = (
+                    self._config.to_dict() if hasattr(self._config, "to_dict") else {}
+                )
+        except Exception:
+            pass
+        try:
+            if self._agent and hasattr(self._agent, "_executor"):
+                pkt.open_positions = list(self._agent._executor.open_positions.keys())
+        except Exception:
+            pass
+        try:
+            if self._ticker_universe:
+                pkt.top_tickers_by_streak = self._ticker_universe.get_scores()[:20]
+        except Exception:
+            pass
+        pkt.cycle_count = getattr(self._agent, "_cycle_count", 0) if self._agent else 0
+
+        # Pre-market, news and earnings (non-blocking — populated when available)
+        if getattr(self, '_is_premarket_call', False) or pkt.is_premarket_scan or pkt.cycle_count <= 1:
+            pkt.premarket_scores  = self._fetch_premarket_scores()
+            pkt.news_sentiment    = self._fetch_news_sentiment()
+            et, em = self._fetch_earnings_calendar()
+            pkt.earnings_today    = et
+            pkt.earnings_tomorrow = em
+
+        return pkt
+
+    def _is_emergency(self, s: SignalPacket) -> bool:
+        return (
+            s.day_pnl_pct < -2.5
+            or s.consecutive_losses >= 4
+            or s.regime in ("EXTREME_BEAR", "CRASH")
+        )
+
+    # ── Claude call ───────────────────────────────────────────────────────────
+
+    def _call_claude_and_apply(
+        self, signals: SignalPacket, is_emergency: bool
+    ) -> Optional[ConfigSnapshot]:
+        prompt  = self._build_prompt(signals, is_emergency)
+        raw     = self._call_api(prompt)
+        parsed  = self._parse_response(raw)
+
+        decision      = parsed.get("decision", "hold")
+        reasoning     = parsed.get("reasoning", "")
+        proposed      = parsed.get("config_changes", {})
+        new_watchlist = parsed.get("new_watchlist", None)
+        trigger       = parsed.get("trigger", "scheduled_eval")
+
+        clamped, changes = self._clamp_and_diff(proposed, signals.current_config)
+
+        # Handle watchlist change
+        now = time.time()
+        watchlist_changed = False
+        if (
+            new_watchlist
+            and isinstance(new_watchlist, list)
+            and len(new_watchlist) >= 3
+            and (now - self._last_watchlist_time > WATCHLIST_COOLDOWN_SEC or is_emergency)
+        ):
+            clean = [s.upper() for s in new_watchlist if isinstance(s, str)]
+            clamped["watchlist"] = clean
+            changes["watchlist"] = {
+                "before": signals.current_config.get("watchlist", []),
+                "after":  clean,
+            }
+            self._last_watchlist_time = now
+            watchlist_changed = True
+
+        config_before = dict(signals.current_config)
+        snapshot = ConfigSnapshot(
+            entry_id    = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f"),
+            timestamp   = datetime.now(timezone.utc).isoformat(),
+            trigger     = trigger,
+            decision    = decision,
+            reasoning   = reasoning,
+            changes     = changes,
+            config_before = config_before,
+            config_after  = {},
+            performance_at_time = {
+                "win_rate":          signals.win_rate,
+                "day_pnl":           signals.day_pnl,
+                "day_pnl_pct":       signals.day_pnl_pct,
+                "consecutive_losses":signals.consecutive_losses,
+                "regime":            signals.regime,
+                "equity":            signals.equity,
+            },
+            new_watchlist = clamped.get("watchlist") if watchlist_changed else None,
+        )
+
+        if decision != "hold" and clamped:
+            self._apply_config_dict(clamped)
+            try:
+                snapshot.config_after = (
+                    self._config.to_dict() if hasattr(self._config, "to_dict") else {}
+                )
+            except Exception:
+                pass
+
+        # Always log — including holds — for full audit trail
+        if self._config_log:
+            self._config_log.append(snapshot)
+
+        level = logging.WARNING if is_emergency else logging.INFO
+        logger.log(level,
+            f"[AIConfig] {decision.upper()} | trigger={trigger} | "
+            f"{len(changes)} change(s) | {reasoning[:80]}"
+        )
+        return snapshot
+
+    def _build_prompt(self, s: SignalPacket, is_emergency: bool) -> str:
+        ticker_lines = "\n".join(
+            f"  {t.get('symbol','?'):6s} score={t.get('score',0):4.1f}  "
+            f"streak={t.get('streak',0):+3d}  domain={t.get('domain','')}"
+            for t in s.top_tickers_by_streak[:20]
+        ) or "  (universe not yet scored)"
+
+        current_params = json.dumps(
+            {k: v for k, v in s.current_config.items()
+             if k in PARAM_BOUNDS or k == "watchlist"},
+            indent=2
+        )
+        current_watchlist = s.current_config.get("watchlist", [])
+        emergency_note = (
+            "\n*** EMERGENCY — normal cooldown bypassed. Defend aggressively. ***\n"
+            if is_emergency else ""
+        )
+        # Build premarket / news / earnings strings for prompt
+        if s.premarket_scores:
+            pm_lines = [
+                f"  {p['symbol']:6} gap={p.get('gap_pct',0):+.2f}%  "
+                f"vol={p.get('vol_ratio',1):.1f}x  heat={p.get('heat_score',0):.1f}  {p.get('reason','')[:40]}"
+                for p in s.premarket_scores[:12]
+            ]
+            premarket_str = "\n".join(pm_lines)
+        else:
+            premarket_str = "  Pre-market data not yet available (will populate at 6:00 AM PST)"
+
+        if s.news_sentiment:
+            news_lines = [
+                f"  {sym:6} {d.get('grade','?'):8} score={d.get('score',0):+.2f}  {d.get('summary','')[:60]}"
+                for sym, d in list(s.news_sentiment.items())[:10]
+            ]
+            news_str = "\n".join(news_lines)
+        else:
+            news_str = "  No news data available"
+
+        earnings_today    = ", ".join(s.earnings_today)    or "none"
+        earnings_tomorrow = ", ".join(s.earnings_tomorrow) or "none"
+
+        return f"""You are the autonomous configuration engine for a Micro Momentum paper trading agent (V2).
+Your single goal: MAXIMUM PROFIT. You own every config decision. Be bold when data supports it.
+{emergency_note}
+=== PERFORMANCE ===
+Win rate:           {s.win_rate:.1%}
+Day P&L:            ${s.day_pnl:+.2f}  ({s.day_pnl_pct:+.2f}%)
+Total P&L:          ${s.total_pnl:+.2f}
+Trades today:       {s.total_trades_today}
+Avg win / avg loss: ${s.avg_win:.2f} / ${s.avg_loss:.2f}
+Profit factor:      {s.profit_factor:.2f}
+Consecutive losses: {s.consecutive_losses}
+Open positions:     {', '.join(s.open_positions) or 'none'}
+Equity:             ${s.equity:,.0f}
+
+=== MARKET ===
+Regime: {s.regime}  |  SPY trend: {s.spy_trend}  |  SPY RSI: {s.spy_rsi:.1f}  |  VIX est: {s.vix_est:.1f}
+
+=== CURRENT CONFIG ===
+{current_params}
+
+=== TICKER UNIVERSE — top 20 by streak score ===
+{ticker_lines}
+
+=== ACTIVE WATCHLIST ({len(current_watchlist)} tickers) ===
+{', '.join(current_watchlist) or 'empty'}
+
+=== HARD BOUNDS (enforced after your response — stay within these) ===
+stop_loss_pct 0.0010–0.0050 | take_profit_pct 0.0020–0.0100
+min_conviction_score 1.0–3.0 | max_open_positions 3–15
+intraday_interval_min 1–5 | min_risk_reward 1.2–4.0 | min_strategies_agree 1–4
+
+=== INSTRUCTIONS ===
+1. Decide: expand (push harder), defend (losing, tighten up), or hold (all good, no change).
+2. Set config_changes to only the params you want to modify. Empty dict is fine for hold.
+3. Set new_watchlist to your chosen tickers from the universe above. You decide the count —
+   pick every ticker that is genuinely positioned to make money today. Drop losers ruthlessly.
+   Leveraged ETFs (TQQQ, SOXL, SPXL etc.) are allowed when regime is bullish and win_rate > 65%.
+   Set new_watchlist to null if the current watchlist is already optimal.
+
+Respond ONLY with this JSON — no preamble, no markdown fences:
+{{
+  "decision": "expand" | "defend" | "hold",
+  "trigger": "short phrase — root cause of this decision",
+  "reasoning": "2-3 sentences explaining your full reasoning and what you expect to happen",
+  "config_changes": {{
+    "stop_loss_pct": <float>,
+    "take_profit_pct": <float>,
+    "min_conviction_score": <float>,
+    "max_open_positions": <int>,
+    "intraday_interval_min": <int>,
+    "min_risk_reward": <float>,
+    "min_strategies_agree": <int>
+  }},
+  "new_watchlist": ["SYM1", "SYM2", ...] or null
+}}"""
+
+    def _call_api(self, prompt: str) -> str:
+        payload = json.dumps({
+            "model":      MODEL,
+            "max_tokens": MAX_TOKENS,
+            "messages":   [{"role": "user", "content": prompt}],
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            ANTHROPIC_API_URL, data=payload, method="POST",
+            headers={
+                "Content-Type":      "application/json",
+                "x-api-key":         self._api_key,
+                "anthropic-version": "2023-06-01",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return json.loads(resp.read().decode("utf-8"))["content"][0]["text"]
+
+    def _parse_response(self, raw: str) -> Dict:
+        text = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            import re
+            m = re.search(r"\{.*\}", text, re.DOTALL)
+            if m:
+                try:
+                    return json.loads(m.group())
+                except Exception:
+                    pass
+            logger.error(f"[AIConfig] Parse error: {text[:200]}")
+            return {"decision": "hold", "reasoning": "parse_error", "config_changes": {}}
+
+    # ── Apply helpers ─────────────────────────────────────────────────────────
+
+    def _clamp_and_diff(self, proposed: Dict, current: Dict):
+        clamped, changes = {}, {}
+        for param, value in proposed.items():
+            if param in FROZEN_PARAMS:
+                logger.warning(f"[AIConfig] Blocked frozen param: {param}")
+                continue
+            if param == "watchlist":
+                continue
+            bounds = PARAM_BOUNDS.get(param)
+            if bounds:
+                lo, hi = bounds
+                orig = value
+                value = max(lo, min(hi, value))
+                if value != orig:
+                    logger.info(f"[AIConfig] Clamped {param}: {orig} → {value}")
+            if param in ("max_open_positions", "intraday_interval_min", "min_strategies_agree"):
+                value = int(round(value))
+            old = current.get(param)
+            if old != value:
+                clamped[param] = value
+                changes[param] = {"before": old, "after": value}
+        return clamped, changes
+
+    def _apply_config_dict(self, changes: Dict):
+        if not self._config:
+            return
+        for param, value in changes.items():
+            if param in FROZEN_PARAMS:
+                continue
+            try:
+                setattr(self._config, param, value)
+            except Exception as e:
+                logger.warning(f"[AIConfig] setattr {param} failed: {e}")
+        if self._agent and hasattr(self._agent, "reconfigure"):
+            try:
+                self._agent.reconfigure(self._config)
+            except Exception as e:
+                logger.warning(f"[AIConfig] reconfigure() error: {e}")
+        if hasattr(self._config, "save"):
+            try:
+                self._config.save()
+            except Exception:
+                pass

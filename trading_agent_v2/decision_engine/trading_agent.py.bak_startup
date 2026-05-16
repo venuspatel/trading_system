@@ -719,35 +719,6 @@ class TradingAgent:
         # Phase A: 3:30 PM — run gap prediction, decide what to hold overnight
         if scan_type == "PREMARKET_GAP_SCAN":
             self._run_gap_scan()
-            # ── AI pre-market morning brief ──────────────────────────
-            if getattr(self, '_ai_configurator', None):
-                try:
-                    # Flag this as a premarket scan so signal packet
-                    # fetches news + earnings + premarket scores
-                    self._ai_configurator._last_reconfig_time  = 0.0
-                    self._ai_configurator._last_watchlist_time  = 0.0
-                    # Set flag on configurator so _build_signal_packet knows
-                    self._ai_configurator._is_premarket_call = True
-                    snap = self._ai_configurator.evaluate(force=True)
-                    self._ai_configurator._is_premarket_call = False
-                    if snap:
-                        logger.info(
-                            f"[Agent] AI PRE-MARKET brief: {snap.decision.upper()} | "
-                            f"{snap.trigger}"
-                        )
-                        logger.info(f"[Agent] AI reasoning: {snap.reasoning[:120]}")
-                        if snap.new_watchlist:
-                            logger.info(
-                                f"[Agent] Pre-market watchlist ({len(snap.new_watchlist)}): "
-                                + ", ".join(snap.new_watchlist[:12])
-                                + ("..." if len(snap.new_watchlist) > 12 else "")
-                            )
-                        if snap.changes:
-                            logger.info(f"[Agent] Pre-market config changes: "
-                                + ", ".join(f"{k}: {v['before']}→{v['after']}"
-                                            for k,v in snap.changes.items()))
-                except Exception as _pm_err:
-                    logger.warning(f"[Agent] AI pre-market brief failed: {_pm_err}")
             return
 
         # Phase B: 3:45 PM — smart close (skip positions flagged for overnight hold)
@@ -1116,43 +1087,6 @@ class TradingAgent:
             _now_et = _dt2.now(_tz2.utc)
             _hour   = _now_et.hour - 4  # rough ET (EDT)
             if 9 <= _hour <= 10:  # only in first hour — sell gap and re-enter
-                
-                # ── AI morning brief — runs BEFORE first buy ─────────────
-                if getattr(self, '_ticker_universe', None):
-                    try:
-                        _regime  = "UNKNOWN"
-                        _spy_rsi = 50.0
-                        if hasattr(self, '_dec_engine') and getattr(self._dec_engine, '_current_regime', None):
-                            _r = self._dec_engine._current_regime
-                            _regime  = getattr(_r, 'regime',  'UNKNOWN')
-                            _spy_rsi = getattr(_r, 'spy_rsi', 50.0)
-                        self._ticker_universe.refresh(
-                            regime=_regime, spy_rsi=_spy_rsi, force=True
-                        )
-                        logger.info("[Agent] Universe scored at startup — "
-                                    f"{len(self._ticker_universe._scores)} tickers")
-                    except Exception as _ue:
-                        logger.warning(f"[Agent] Universe refresh failed: {_ue}")
-
-                if getattr(self, '_ai_configurator', None):
-                    try:
-                        # Reset cooldown so morning brief always fires
-                        self._ai_configurator._last_reconfig_time = 0.0
-                        _snap = self._ai_configurator.evaluate(force=True)
-                        if _snap:
-                            logger.info(
-                                f"[Agent] AI morning brief: {_snap.decision.upper()} | "
-                                f"{_snap.trigger} | {_snap.reasoning[:80]}"
-                            )
-                            if _snap.new_watchlist:
-                                logger.info(
-                                    f"[Agent] Morning watchlist ({len(_snap.new_watchlist)}): "
-                                    + ", ".join(_snap.new_watchlist[:12])
-                                    + ("..." if len(_snap.new_watchlist) > 12 else "")
-                                )
-                    except Exception as _ae:
-                        logger.warning(f"[Agent] AI morning brief failed: {_ae}")
-                # ─────────────────────────────────────────────────────────
                 logger.info("[Agent] Morning startup — checking gap open exits")
                 self._check_gap_open_exits()
 
@@ -1742,11 +1676,7 @@ class TradingAgent:
         # ── AI autonomous evaluation (runs after every scan cycle) ───
         if getattr(self, '_ai_configurator', None):
             try:
-                _force = getattr(self._ai_configurator, '_force_next_eval', False)
-                if _force:
-                    self._ai_configurator._force_next_eval = False
-                    self._ai_configurator._last_reconfig_time = 0.0
-                _ai_snap = self._ai_configurator.evaluate(force=_force)
+                _ai_snap = self._ai_configurator.evaluate()
                 if _ai_snap and _ai_snap.decision != 'hold':
                     _wl = _ai_snap.new_watchlist or []
                     logger.info(

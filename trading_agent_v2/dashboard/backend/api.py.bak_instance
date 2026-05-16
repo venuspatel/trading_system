@@ -865,18 +865,6 @@ def get_state():
         "intraday_vwap":   agent_state.get("intraday_vwap", {}),
         "watchlist":       _config.watchlist if _config else [],
         "cycle_count":     getattr(_agent, "_cycle_count", agent_state.get("cycle_count", 0)) if _agent else 0,
-        "ai_config": (
-            {
-                "enabled":    _agent._ai_configurator._enabled,
-                "eval_count": _agent._ai_configurator._eval_count,
-                "summary":    _agent._config_log.summary() if getattr(_agent, "_config_log", None) else {},
-            }
-            if _agent and getattr(_agent, "_ai_configurator", None) else {"enabled": False}
-        ),
-        "universe_top10": (
-            _agent._ticker_universe.get_scores()[:10]
-            if _agent and getattr(_agent, "_ticker_universe", None) else []
-        ),
         "news_sentiment":  _news_cache,
         "discipline":      _agent.discipline_status() if _agent and hasattr(_agent, 'discipline_status') else {},
         "conviction_breakdown": _agent.last_conviction_breakdown() if _agent and hasattr(_agent, 'last_conviction_breakdown') else {},
@@ -1334,76 +1322,29 @@ async def toggle_strategy(body: dict):
 
 @app.get("/api/ai_config/status")
 def ai_config_status():
-    import json as _json, os as _os, datetime as _dt
-    ac = getattr(_agent, "_ai_configurator", None) if _agent else None
-    cl = getattr(_agent, "_config_log", None) if _agent else None
-
+    if not _agent or not hasattr(_agent, "_ai_configurator"):
+        return {"enabled": False, "message": "AIConfigurator not initialised — see trading_agent_patch.py"}
+    ac = _agent._ai_configurator
+    cl = getattr(_agent, "_config_log", None)
+    import datetime as _dt
     def _ts(t):
         if not t: return None
         return _dt.datetime.fromtimestamp(t, tz=_dt.timezone.utc).isoformat()
-
-    # Read summary from log file directly (source of truth)
-    summary = cl.summary() if cl else {}
-    if not summary.get("total_decisions"):
-        _base = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "..", "logs"))
-        _log  = _os.path.join(_base, "ai_config_log.jsonl")
-        if _os.path.exists(_log):
-            try:
-                with open(_log) as _f:
-                    lines = [l.strip() for l in _f if l.strip()]
-                entries = [_json.loads(l) for l in lines if l]
-                if entries:
-                    last = entries[-1]
-                    summary = {
-                        "total_decisions":   len(entries),
-                        "expands":  sum(1 for e in entries if e.get("decision")=="expand"),
-                        "defends":  sum(1 for e in entries if e.get("decision")=="defend"),
-                        "holds":    sum(1 for e in entries if e.get("decision")=="hold"),
-                        "watchlist_changes": sum(1 for e in entries if e.get("new_watchlist")),
-                        "last_decision":  last.get("decision",""),
-                        "last_trigger":   last.get("trigger",""),
-                        "last_timestamp": last.get("timestamp",""),
-                        "last_reasoning": last.get("reasoning",""),
-                    }
-            except Exception:
-                pass
-
     return {
-        "enabled":                ac._enabled if ac else False,
-        "eval_count":             ac._eval_count if ac else 0,
-        "last_reconfig":          _ts(ac._last_reconfig_time) if ac else None,
-        "last_watchlist_refresh": _ts(ac._last_watchlist_time) if ac else None,
-        "summary":                summary,
-        "agent_has_configurator": ac is not None,
+        "enabled":               ac._enabled,
+        "eval_count":            ac._eval_count,
+        "last_reconfig":         _ts(ac._last_reconfig_time),
+        "last_watchlist_refresh":_ts(ac._last_watchlist_time),
+        "summary":               cl.summary() if cl else {},
     }
 
 
 @app.get("/api/ai_config/history")
 def ai_config_history(limit: int = 50):
-    import json as _json, os as _os
-    # Primary: use agent's in-memory config_log
-    cl = getattr(_agent, "_config_log", None) if _agent else None
-    if cl:
-        entries = cl.recent(limit)
-        if entries:
-            return {"entries": entries, "total": len(entries)}
-    # Fallback: read log file directly (handles cross-instance case)
-    _base = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "..", "logs"))
-    _log  = _os.path.join(_base, "ai_config_log.jsonl")
-    if _os.path.exists(_log):
-        try:
-            with open(_log) as _f:
-                lines = [l.strip() for l in _f if l.strip()]
-            entries = []
-            for line in reversed(lines[-limit:]):
-                try:
-                    entries.append(_json.loads(line))
-                except Exception:
-                    pass
-            return {"entries": entries, "total": len(entries)}
-        except Exception as _e:
-            return {"entries": [], "total": 0, "error": str(_e)}
-    return {"entries": [], "total": 0, "message": "No log file yet — will appear after first decision"}
+    if not _agent or not hasattr(_agent, "_config_log"):
+        return {"entries": [], "total": 0, "message": "ConfigLog not initialised"}
+    entries = _agent._config_log.recent(limit)
+    return {"entries": entries, "total": len(entries)}
 
 
 @app.post("/api/ai_config/revert/{entry_id}")
@@ -1417,73 +1358,23 @@ def ai_config_revert(entry_id: str):
 
 @app.post("/api/ai_config/evaluate")
 def ai_config_force_evaluate():
-    """
-    Sets a flag for the scan loop to force-evaluate on its next cycle.
-    Returns the most recent decision from the log immediately (non-blocking).
-    """
-    import json as _json, os as _os
-    ac = getattr(_agent, "_ai_configurator", None) if _agent else None
-    if not ac:
-        return {"error": "AIConfigurator not attached to agent — restart V2"}
-
-    # Set flag — scan loop picks it up within 1 scan interval
-    ac._force_next_eval = True
-
-    # Return latest logged decision immediately (no blocking)
-    _base = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "..", "logs"))
-    _log  = _os.path.join(_base, "ai_config_log.jsonl")
-    if _os.path.exists(_log):
-        try:
-            with open(_log) as _f:
-                lines = [l.strip() for l in _f if l.strip()]
-            if lines:
-                last = _json.loads(lines[-1])
-                return {
-                    "status":       "triggered",
-                    "message":      "Force-eval flagged — fires on next scan cycle (within 1 min)",
-                    "last_decision": last.get("decision"),
-                    "last_trigger":  last.get("trigger"),
-                    "last_reasoning":last.get("reasoning","")[:200],
-                    "last_changes":  last.get("changes",{}),
-                    "last_timestamp":last.get("timestamp",""),
-                }
-        except Exception:
-            pass
-
-    return {
-        "status":  "triggered",
-        "message": "Force-eval flagged — fires on next scan cycle (within 1 min)",
-        "last_decision": None,
-    }
-
-
-@app.get("/api/ai_config/latest")
-def ai_config_latest():
-    """Return the most recent AI decision from log — always instant, never blocks."""
-    import json as _json, os as _os
-    _base = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "..", "..", "logs"))
-    _log  = _os.path.join(_base, "ai_config_log.jsonl")
-    if not _os.path.exists(_log):
-        return {"message": "No decisions logged yet"}
+    if not _agent or not hasattr(_agent, "_ai_configurator"):
+        return {"error": "AIConfigurator not available — apply trading_agent_patch.py first"}
     try:
-        with open(_log) as _f:
-            lines = [l.strip() for l in _f if l.strip()]
-        if not lines:
-            return {"message": "Log empty"}
-        last = _json.loads(lines[-1])
-        return {
-            "decision":   last.get("decision"),
-            "trigger":    last.get("trigger"),
-            "reasoning":  last.get("reasoning",""),
-            "changes":    last.get("changes",{}),
-            "watchlist":  last.get("new_watchlist"),
-            "timestamp":  last.get("timestamp",""),
-            "entry_id":   last.get("entry_id",""),
-            "performance":last.get("performance_at_time",{}),
-            "total_logged": len(lines),
-        }
+        snap = _agent._ai_configurator.evaluate(force=True)
+        if snap:
+            return {
+                "decision":     snap.decision,
+                "trigger":      snap.trigger,
+                "reasoning":    snap.reasoning,
+                "changes":      snap.changes,
+                "new_watchlist":snap.new_watchlist,
+                "entry_id":     snap.entry_id,
+            }
+        return {"decision": "hold", "message": "No change warranted"}
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()[-500:]}
 
 
 @app.get("/api/universe/scores")

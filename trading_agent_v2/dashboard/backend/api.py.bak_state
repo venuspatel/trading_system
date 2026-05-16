@@ -865,18 +865,6 @@ def get_state():
         "intraday_vwap":   agent_state.get("intraday_vwap", {}),
         "watchlist":       _config.watchlist if _config else [],
         "cycle_count":     getattr(_agent, "_cycle_count", agent_state.get("cycle_count", 0)) if _agent else 0,
-        "ai_config": (
-            {
-                "enabled":    _agent._ai_configurator._enabled,
-                "eval_count": _agent._ai_configurator._eval_count,
-                "summary":    _agent._config_log.summary() if getattr(_agent, "_config_log", None) else {},
-            }
-            if _agent and getattr(_agent, "_ai_configurator", None) else {"enabled": False}
-        ),
-        "universe_top10": (
-            _agent._ticker_universe.get_scores()[:10]
-            if _agent and getattr(_agent, "_ticker_universe", None) else []
-        ),
         "news_sentiment":  _news_cache,
         "discipline":      _agent.discipline_status() if _agent and hasattr(_agent, 'discipline_status') else {},
         "conviction_breakdown": _agent.last_conviction_breakdown() if _agent and hasattr(_agent, 'last_conviction_breakdown') else {},

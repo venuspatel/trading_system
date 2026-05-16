@@ -1742,11 +1742,7 @@ class TradingAgent:
         # ── AI autonomous evaluation (runs after every scan cycle) ───
         if getattr(self, '_ai_configurator', None):
             try:
-                _force = getattr(self._ai_configurator, '_force_next_eval', False)
-                if _force:
-                    self._ai_configurator._force_next_eval = False
-                    self._ai_configurator._last_reconfig_time = 0.0
-                _ai_snap = self._ai_configurator.evaluate(force=_force)
+                _ai_snap = self._ai_configurator.evaluate()
                 if _ai_snap and _ai_snap.decision != 'hold':
                     _wl = _ai_snap.new_watchlist or []
                     logger.info(
