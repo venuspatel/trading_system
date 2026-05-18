@@ -132,6 +132,20 @@ class AIReviewer:
                 used_ai    = False,
             )
 
+        # AIReviewer in pass-through mode — AIConfigurator handles strategy
+        return AIVerdict(
+            approved=True, confidence=0.85,
+            reasoning='Pass-through: AIConfigurator owns strategy decisions',
+            used_ai=False
+        )
+
+        # AIReviewer in pass-through mode — AIConfigurator handles strategy
+        return AIVerdict(
+            approved=True, confidence=0.85,
+            reasoning='Pass-through: AIConfigurator owns strategy decisions',
+            used_ai=False
+        )
+
         prompt = self._build_prompt(
             symbol, action, conviction_score, strategies_fired,
             top_reasons, buy_signals, sell_signals, price,

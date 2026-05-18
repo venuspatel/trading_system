@@ -196,7 +196,7 @@ class StrategyEngine:
         "Conservative":     {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
         "Balanced":         {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
                 "Profit Maximizer": {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY},
-        "Micro Momentum":  {StrategyRole.INTRADAY},  # scalp only — fast in/out
+        "Micro Momentum":  {StrategyRole.INTRADAY, StrategyRole.NEUTRAL, StrategyRole.TREND},  # all 13 strategies active
         "Aggressive":       {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY},
         "Long Term":        {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
     }
