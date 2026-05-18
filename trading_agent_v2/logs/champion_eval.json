@@ -1,13 +1,13 @@
 {
-  "updated_at": "2026-05-16T01:12:01.739894+00:00",
+  "updated_at": "2026-05-18T20:44:31.781656+00:00",
   "today": {
-    "date": "2026-05-15",
-    "trades": 0,
+    "date": "2026-05-18",
+    "trades": 6,
     "win_rate": 0.0,
-    "day_pnl": 0.0,
-    "max_drawdown": 0.0,
+    "day_pnl": -171.81,
+    "max_drawdown": 0.0029,
     "qualifies": false,
-    "reason": "No trades today"
+    "reason": "win_rate 0% < 75% | P&L $-172 < $300"
   },
   "consecutive": 0,
   "promote_ready": false,
@@ -40,40 +40,40 @@
       "reason": "No trades today"
     },
     {
-      "date": "2026-05-15",
-      "trades": 0,
-      "win_rate": 0.0,
-      "day_pnl": 0.0,
-      "max_drawdown": 0.0,
+      "date": "2026-05-18",
+      "trades": 16,
+      "win_rate": 0.5,
+      "day_pnl": 45044.88,
+      "max_drawdown": 0.0029,
       "qualifies": false,
-      "reason": "No trades today"
+      "reason": "win_rate 50% < 75%"
     },
     {
-      "date": "2026-05-15",
-      "trades": 0,
-      "win_rate": 0.0,
-      "day_pnl": 0.0,
-      "max_drawdown": 0.0,
+      "date": "2026-05-18",
+      "trades": 16,
+      "win_rate": 0.5,
+      "day_pnl": 45044.88,
+      "max_drawdown": 0.0029,
       "qualifies": false,
-      "reason": "No trades today"
+      "reason": "win_rate 50% < 75%"
     },
     {
-      "date": "2026-05-15",
-      "trades": 0,
+      "date": "2026-05-18",
+      "trades": 6,
       "win_rate": 0.0,
-      "day_pnl": 0.0,
-      "max_drawdown": 0.0,
+      "day_pnl": -171.81,
+      "max_drawdown": 0.0029,
       "qualifies": false,
-      "reason": "No trades today"
+      "reason": "win_rate 0% < 75% | P&L $-172 < $300"
     },
     {
-      "date": "2026-05-15",
-      "trades": 0,
+      "date": "2026-05-18",
+      "trades": 6,
       "win_rate": 0.0,
-      "day_pnl": 0.0,
-      "max_drawdown": 0.0,
+      "day_pnl": -171.81,
+      "max_drawdown": 0.0029,
       "qualifies": false,
-      "reason": "No trades today"
+      "reason": "win_rate 0% < 75% | P&L $-172 < $300"
     }
   ],
   "criteria": {
