@@ -351,12 +351,6 @@ class TradingAgent:
         )
         self._data_manager.connect()
 
-        # Wire data_manager into TickerUniverse now that it is connected
-        if getattr(self, '_ticker_universe', None):
-            self._ticker_universe._data_manager = self._data_manager
-            self._ticker_universe._portfolio     = self._portfolio
-            logger.info('[Agent] TickerUniverse data_manager wired — real scoring enabled')
-
         # Replace naive interval loop with market-aware scheduler
         self._scheduler = MarketScheduler(self.config)
         self._scheduler.on_scan(self._scheduled_scan)
