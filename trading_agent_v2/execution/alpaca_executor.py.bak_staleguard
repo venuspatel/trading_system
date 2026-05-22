@@ -295,7 +295,7 @@ class AlpacaExecutor:
                     _raw_time = getattr(ap, 'lastday_price', None) or getattr(ap, 'change_today', None)
                     # Skip if entry price differs wildly from current (stale position signal)
                     _price_drift = abs(curr - entry) / entry if entry > 0 else 0
-                    if _price_drift > 0.03:  # >3% drift = stale position (V2 stop=0.4% TP=0.8%)
+                    if _price_drift > 0.05:  # >5% drift = position from different session
                         logger.warning(
                             f"[Executor] SKIPPED stale import {symbol}: "
                             f"entry=${entry:.2f} current=${curr:.2f} drift={_price_drift:.1%}"

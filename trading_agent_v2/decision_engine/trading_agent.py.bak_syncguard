@@ -410,12 +410,8 @@ class TradingAgent:
                 from execution.portfolio_tracker import ClosedTrade
 
                 # Fetch today's filled orders via REST directly
-                # UTC_MIDNIGHT_BLOCK1 — use UTC midnight, not local date + Z
-                # local date + Z = 5PM yesterday PDT, pulling previous session orders
-                from datetime import timezone as _tz
-                _midnight_utc = datetime.now(_tz.utc).replace(
-                    hour=0, minute=0, second=0, microsecond=0)
-                _after = _midnight_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+                _today_str = date.today().isoformat()
+                _after = f"{_today_str}T00:00:00Z"
 
                 try:
                     # Try SDK approach first
@@ -480,13 +476,6 @@ class TradingAgent:
                     entry_t     = str(getattr(_sym_buys[-1], 'filled_at', exit_t)) if _sym_buys else exit_t
                     pnl         = (exit_price - entry_price) * qty
                     pnl_pct     = (exit_price - entry_price) / entry_price if entry_price else 0
-                    # TRADING_AGENT_SYNC_DRIFT_GUARD block1
-                    # V2 stop=0.4% TP=0.8% — nothing legit exceeds 3%
-                    _drift1 = abs(exit_price - entry_price) / entry_price if entry_price else 0
-                    if _drift1 > 0.03:
-                        logger.warning(f"[Agent] Sync SKIPPED {sym}: drift {_drift1:.1%} "
-                                       f"entry=${entry_price:.2f} exit=${exit_price:.2f}")
-                        continue
                     trade = ClosedTrade(
                         symbol=sym, entry_price=entry_price, exit_price=exit_price,
                         qty=qty, entry_time=entry_t, exit_time=exit_t,
@@ -1017,13 +1006,6 @@ class TradingAgent:
                 pnl      = (avg_sell - avg_buy) * qty_sold
                 entry_ts = min(t for _,_,t in b_list)
                 exit_ts  = max(t for _,_,t in s_list)
-
-                # TRADING_AGENT_SYNC_DRIFT_GUARD block2
-                _drift2 = abs(avg_sell - avg_buy) / avg_buy if avg_buy > 0 else 0
-                if _drift2 > 0.03:
-                    logger.warning(f"[SyncAlpaca] SKIPPED {sym}: drift {_drift2:.1%} "
-                                   f"avg_buy=${avg_buy:.2f} avg_sell=${avg_sell:.2f}")
-                    continue
 
                 trade = ClosedTrade(
                     symbol      = sym,

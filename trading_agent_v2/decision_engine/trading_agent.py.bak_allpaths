@@ -410,12 +410,8 @@ class TradingAgent:
                 from execution.portfolio_tracker import ClosedTrade
 
                 # Fetch today's filled orders via REST directly
-                # UTC_MIDNIGHT_BLOCK1 — use UTC midnight, not local date + Z
-                # local date + Z = 5PM yesterday PDT, pulling previous session orders
-                from datetime import timezone as _tz
-                _midnight_utc = datetime.now(_tz.utc).replace(
-                    hour=0, minute=0, second=0, microsecond=0)
-                _after = _midnight_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+                _today_str = date.today().isoformat()
+                _after = f"{_today_str}T00:00:00Z"
 
                 try:
                     # Try SDK approach first

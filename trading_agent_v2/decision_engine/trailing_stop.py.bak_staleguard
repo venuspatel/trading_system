@@ -150,17 +150,6 @@ class TrailingStopManager:
                 # Always calculate from config — never trust Alpaca stop_loss (always null)
                 sl = ep * (1 - self.config.stop_loss_pct)  if ep else 0
                 tp = ep * (1 + self.config.take_profit_pct) if ep else 0
-                # TRAILING_STOP_STALE_GUARD
-                # If current market price already exceeds TP, this is a stale
-                # position from a previous session — skip it entirely.
-                # e.g. COIN entry=$188 TP=$189.56 but market=$425 → skip
-                _ep_drift = abs(price - ep) / ep if ep > 0 else 0
-                if _ep_drift > 0.03:  # current price > 3% from entry = stale
-                    logger.warning(
-                        f"[TrailingStop] SKIPPED stale auto-register {symbol}: "
-                        f"entry=${ep:.2f} market=${price:.2f} drift={_ep_drift:.1%}"
-                    )
-                    continue
                 self.register_position(
                     symbol      = symbol,
                     entry_price = ep,

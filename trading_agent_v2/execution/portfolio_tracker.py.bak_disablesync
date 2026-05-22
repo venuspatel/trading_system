@@ -604,12 +604,9 @@ class PortfolioTracker:
         previous-session orders. Dedup on order_id prevents duplicates.
         Does NOT use alpaca_positions as entry fallback (causes phantoms).
         USE_UTC_MIDNIGHT
-        SYNC_EOD_DISABLED — disabled 2026-05-22. Creates phantom trades
-        by mismatching buy/sell orders across sessions. Agent records
-        all trades in real-time via record_trade(). Not needed.
         """
-        return  # SYNC_EOD_DISABLED
-
+        if not self._alpaca_key or not self._alpaca_secret:
+            return
         try:
             import urllib.request as _ur
             import json as _json
