@@ -2,8 +2,8 @@
   "starting_value": 1000000,
   "historical_pnl_offset": 24035.269999999975,
   "peak_value": 1090879.1,
-  "day_date": "2026-05-20",
-  "day_start_pnl": 2175.1800000000003,
+  "day_date": "2026-05-21",
+  "day_start_pnl": -283.5499999999995,
   "trades": [
     {
       "symbol": "AMD",
@@ -1486,1808 +1486,1899 @@
       "exit_reason": "Trailing stop hit at $126.96 (-1.6%)",
       "strategy": "",
       "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "RKLB",
+      "entry_price": 133.0048,
+      "exit_price": 132.37,
+      "qty": 258,
+      "entry_time": "2026-05-20T16:20:21.214205+00:00",
+      "exit_time": "2026-05-20T16:20:21.214205+00:00",
+      "pnl": -163.78,
+      "pnl_pct": -0.0048,
+      "exit_reason": "Trailing stop hit at $132.56 (-0.5%)",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "AMD",
+      "entry_price": 446.89,
+      "exit_price": 442.31,
+      "qty": 105,
+      "entry_time": "2026-05-20T16:27:26.364081+00:00",
+      "exit_time": "2026-05-20T16:27:26.364081+00:00",
+      "pnl": -480.9,
+      "pnl_pct": -0.0102,
+      "exit_reason": "Trailing stop hit at $442.42 (-1.0%)",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "MARA",
+      "entry_price": 13.34,
+      "exit_price": 13.18,
+      "qty": 6226,
+      "entry_time": "2026-05-20T16:29:52.681538+00:00",
+      "exit_time": "2026-05-20T16:29:52.681538+00:00",
+      "pnl": -996.16,
+      "pnl_pct": -0.012,
+      "exit_reason": "Trailing stop hit at $13.21 (-1.2%)",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "RKLB",
+      "entry_price": 125.5,
+      "exit_price": 127.48,
+      "qty": 149,
+      "entry_time": "2026-05-21T13:37:13.426027+00:00",
+      "exit_time": "2026-05-21T13:37:13.426027+00:00",
+      "pnl": 295.02,
+      "pnl_pct": 0.0158,
+      "exit_reason": "partial_profit",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "RKLB",
+      "entry_price": 125.5,
+      "exit_price": 129.61,
+      "qty": 217,
+      "entry_time": "2026-05-21T13:49:55.938907+00:00",
+      "exit_time": "2026-05-21T13:49:55.938907+00:00",
+      "pnl": 891.87,
+      "pnl_pct": 0.0327,
+      "exit_reason": "Take profit hit at $129.27 (+3.3%)",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "AMD",
+      "entry_price": 444.69,
+      "exit_price": 439.4,
+      "qty": 104,
+      "entry_time": "2026-05-21T14:06:48.538228+00:00",
+      "exit_time": "2026-05-21T14:06:48.538228+00:00",
+      "pnl": -550.16,
+      "pnl_pct": -0.0119,
+      "exit_reason": "Trailing stop hit at $440.24 (-1.2%)",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "AAL",
+      "entry_price": 13.31,
+      "exit_price": 13.26,
+      "qty": 3599,
+      "entry_time": "2026-05-21T18:55:46.533733+00:00",
+      "exit_time": "2026-05-21T18:55:46.533733+00:00",
+      "pnl": -179.95,
+      "pnl_pct": -0.0038,
+      "exit_reason": "Trailing stop hit at $13.30 (-0.4%)",
+      "strategy": "",
+      "approach": "Profit Maximizer"
     }
   ],
   "snapshots": [
     {
-      "timestamp": "2026-05-19T14:39:20.491967+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:21:01.058786+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:41:34.182902+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:23:26.273499+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:43:47.429136+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:25:49.556248+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:46:00.391825+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:28:11.402345+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:48:13.205251+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:30:33.357378+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:50:26.778807+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:32:58.403875+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:52:39.838138+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:35:23.715963+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:54:51.721899+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:37:48.309011+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:57:05.457651+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:40:12.050041+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T14:59:20.309245+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:42:34.792643+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:01:32.843927+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:44:57.232200+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:03:46.834840+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:47:20.478824+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:05:59.457387+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:49:43.783187+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:08:12.227870+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:52:06.785838+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:10:25.487974+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:54:32.345182+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:12:38.801717+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:56:54.322969+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:14:51.275792+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T18:59:18.289202+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:17:04.748835+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:01:45.580296+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:19:17.848487+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:04:11.403875+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:21:30.669110+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:06:35.499454+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:23:43.174639+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:08:59.392093+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:26:03.071324+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:11:26.001605+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:28:15.328114+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:13:48.336057+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:30:29.637106+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:16:13.057783+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:32:42.360721+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:18:38.724785+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:34:55.091164+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:21:02.688846+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:37:07.672760+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:23:26.571267+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:39:20.080536+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:25:51.475618+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:41:33.931508+00:00",
-      "portfolio_value": 1025586.35,
-      "cash": 1025586.35,
+      "timestamp": "2026-05-20T19:28:15.150692+00:00",
+      "portfolio_value": 1024086.44,
+      "cash": 1024086.44,
       "open_positions": 0,
       "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-19T15:43:40.160392+00:00",
-      "portfolio_value": 1025546.45,
-      "cash": 1025546.45,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-19T15:45:46.075643+00:00",
-      "portfolio_value": 1025653.33,
-      "cash": 1025653.33,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0598
-    },
-    {
-      "timestamp": "2026-05-19T15:47:51.958573+00:00",
-      "portfolio_value": 1025603.48,
-      "cash": 1025603.48,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0598
-    },
-    {
-      "timestamp": "2026-05-19T15:49:57.619350+00:00",
-      "portfolio_value": 1025572.1,
-      "cash": 1025572.1,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-19T15:52:03.530631+00:00",
-      "portfolio_value": 1025456.11,
-      "cash": 1025456.11,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.06
-    },
-    {
-      "timestamp": "2026-05-19T15:54:09.484889+00:00",
-      "portfolio_value": 1025495.44,
-      "cash": 1025495.44,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-19T15:56:15.321728+00:00",
-      "portfolio_value": 1025375.45,
-      "cash": 1025375.45,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.06
-    },
-    {
-      "timestamp": "2026-05-19T15:58:21.284869+00:00",
-      "portfolio_value": 1025592.05,
-      "cash": 1025592.05,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0598
-    },
-    {
-      "timestamp": "2026-05-19T16:00:28.140284+00:00",
-      "portfolio_value": 1025723.18,
-      "cash": 1025723.18,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0597
-    },
-    {
-      "timestamp": "2026-05-19T16:02:34.410854+00:00",
-      "portfolio_value": 1025945.45,
-      "cash": 1025945.45,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0595
-    },
-    {
-      "timestamp": "2026-05-19T16:04:40.512727+00:00",
-      "portfolio_value": 1025965.4,
-      "cash": 1025965.4,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0595
-    },
-    {
-      "timestamp": "2026-05-19T16:06:47.195514+00:00",
-      "portfolio_value": 1025993.9,
-      "cash": 1025993.9,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0595
-    },
-    {
-      "timestamp": "2026-05-19T16:08:52.965906+00:00",
-      "portfolio_value": 1025851.4,
-      "cash": 1025851.4,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0596
-    },
-    {
-      "timestamp": "2026-05-19T16:10:58.884438+00:00",
-      "portfolio_value": 1025845.7,
-      "cash": 1025845.7,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0596
-    },
-    {
-      "timestamp": "2026-05-19T16:13:05.063219+00:00",
-      "portfolio_value": 1025945.45,
-      "cash": 1025945.45,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0595
-    },
-    {
-      "timestamp": "2026-05-19T16:15:11.952746+00:00",
-      "portfolio_value": 1025888.45,
-      "cash": 1025888.45,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0596
-    },
-    {
-      "timestamp": "2026-05-19T16:17:17.916225+00:00",
-      "portfolio_value": 1025899.85,
-      "cash": 1025899.85,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0596
-    },
-    {
-      "timestamp": "2026-05-19T16:19:23.988831+00:00",
-      "portfolio_value": 1025909.83,
-      "cash": 1025909.83,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0596
-    },
-    {
-      "timestamp": "2026-05-19T16:21:30.279413+00:00",
-      "portfolio_value": 1025988.2,
-      "cash": 1025988.2,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0595
-    },
-    {
-      "timestamp": "2026-05-19T16:23:36.125810+00:00",
-      "portfolio_value": 1025925.5,
-      "cash": 1025925.5,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0595
-    },
-    {
-      "timestamp": "2026-05-19T16:25:42.413815+00:00",
-      "portfolio_value": 1026154.93,
-      "cash": 1026154.93,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1127.75,
-      "drawdown": 0.0593
-    },
-    {
-      "timestamp": "2026-05-19T16:27:48.673308+00:00",
-      "portfolio_value": 1026187.67,
-      "cash": 1026187.67,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0593
-    },
-    {
-      "timestamp": "2026-05-19T16:29:54.570098+00:00",
-      "portfolio_value": 1026242.8,
-      "cash": 1026242.8,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0593
-    },
-    {
-      "timestamp": "2026-05-19T16:32:00.721283+00:00",
-      "portfolio_value": 1026264.96,
-      "cash": 1026264.96,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0592
-    },
-    {
-      "timestamp": "2026-05-19T16:34:07.004913+00:00",
-      "portfolio_value": 1026289.3,
-      "cash": 1026289.3,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0592
-    },
-    {
-      "timestamp": "2026-05-19T16:36:14.198529+00:00",
-      "portfolio_value": 1026316.44,
-      "cash": 1026316.44,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0592
-    },
-    {
-      "timestamp": "2026-05-19T16:38:20.390939+00:00",
-      "portfolio_value": 1026247.8,
-      "cash": 1026247.8,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0592
-    },
-    {
-      "timestamp": "2026-05-19T16:40:26.751401+00:00",
-      "portfolio_value": 1026305.01,
-      "cash": 1026305.01,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0592
-    },
-    {
-      "timestamp": "2026-05-19T16:42:32.368153+00:00",
-      "portfolio_value": 1026327.17,
-      "cash": 1026327.17,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0592
-    },
-    {
-      "timestamp": "2026-05-19T16:44:39.007749+00:00",
-      "portfolio_value": 1026393.72,
-      "cash": 1026393.72,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1420.27,
-      "drawdown": 0.0591
-    },
-    {
-      "timestamp": "2026-05-19T16:46:44.846408+00:00",
-      "portfolio_value": 1026368.64,
-      "cash": 1026368.64,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0591
-    },
-    {
-      "timestamp": "2026-05-19T16:48:56.834401+00:00",
-      "portfolio_value": 1026357.91,
-      "cash": 1026357.91,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0591
-    },
-    {
-      "timestamp": "2026-05-19T16:51:03.656993+00:00",
-      "portfolio_value": 1026253.03,
-      "cash": 1026253.03,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0592
-    },
-    {
-      "timestamp": "2026-05-19T16:53:09.904540+00:00",
-      "portfolio_value": 1026484.24,
-      "cash": 1026484.24,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T16:55:17.125547+00:00",
-      "portfolio_value": 1026613.21,
-      "cash": 1026613.21,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0589
-    },
-    {
-      "timestamp": "2026-05-19T16:57:23.146823+00:00",
-      "portfolio_value": 1026532.26,
-      "cash": 1026532.26,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T16:59:28.803761+00:00",
-      "portfolio_value": 1026506.95,
-      "cash": 1026506.95,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T17:01:35.046064+00:00",
-      "portfolio_value": 1026611.83,
-      "cash": 1026611.83,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0589
-    },
-    {
-      "timestamp": "2026-05-19T17:03:41.285294+00:00",
-      "portfolio_value": 1026746.27,
-      "cash": 1026746.27,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0588
-    },
-    {
-      "timestamp": "2026-05-19T17:05:47.343213+00:00",
-      "portfolio_value": 1026747.07,
-      "cash": 1026747.07,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0588
-    },
-    {
-      "timestamp": "2026-05-19T17:07:53.234504+00:00",
-      "portfolio_value": 1026603.55,
-      "cash": 1026603.55,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0589
-    },
-    {
-      "timestamp": "2026-05-19T17:09:59.106273+00:00",
-      "portfolio_value": 1026890.62,
-      "cash": 1026890.62,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1965.1,
-      "drawdown": 0.0587
-    },
-    {
-      "timestamp": "2026-05-19T17:12:05.229866+00:00",
-      "portfolio_value": 1026915.43,
-      "cash": 1026915.43,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2238.34,
-      "drawdown": 0.0586
-    },
-    {
-      "timestamp": "2026-05-19T17:14:11.397203+00:00",
-      "portfolio_value": 1026983.07,
-      "cash": 1026983.07,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2238.34,
-      "drawdown": 0.0586
-    },
-    {
-      "timestamp": "2026-05-19T17:16:17.453410+00:00",
-      "portfolio_value": 1027096.92,
-      "cash": 1027096.92,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2238.34,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:18:23.323835+00:00",
-      "portfolio_value": 1027107.27,
-      "cash": 1027107.27,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2238.34,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:20:29.923273+00:00",
-      "portfolio_value": 1027190.76,
-      "cash": 1027190.76,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0584
-    },
-    {
-      "timestamp": "2026-05-19T17:22:42.678887+00:00",
-      "portfolio_value": 1027193.01,
-      "cash": 1027193.01,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0584
-    },
-    {
-      "timestamp": "2026-05-19T17:24:49.468334+00:00",
-      "portfolio_value": 1027100.13,
-      "cash": 1027100.13,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:26:55.176756+00:00",
-      "portfolio_value": 1027089.81,
-      "cash": 1027089.81,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:29:00.973222+00:00",
-      "portfolio_value": 1027110.45,
-      "cash": 1027110.45,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:31:08.612078+00:00",
-      "portfolio_value": 1027347.81,
-      "cash": 1027347.81,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0582
-    },
-    {
-      "timestamp": "2026-05-19T17:33:15.673295+00:00",
-      "portfolio_value": 1027065.73,
-      "cash": 1027065.73,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:35:22.171105+00:00",
-      "portfolio_value": 1027031.33,
-      "cash": 1027031.33,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:37:28.163341+00:00",
-      "portfolio_value": 1027182.69,
-      "cash": 1027182.69,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0584
-    },
-    {
-      "timestamp": "2026-05-19T17:39:34.706566+00:00",
-      "portfolio_value": 1027079.87,
-      "cash": 1027079.87,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0585
-    },
-    {
-      "timestamp": "2026-05-19T17:41:40.618556+00:00",
-      "portfolio_value": 1027141.41,
-      "cash": 1027141.41,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0584
-    },
-    {
-      "timestamp": "2026-05-19T17:43:46.550011+00:00",
-      "portfolio_value": 1026968.58,
-      "cash": 1026968.58,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0586
-    },
-    {
-      "timestamp": "2026-05-19T17:45:52.881090+00:00",
-      "portfolio_value": 1026742.4,
-      "cash": 1026742.4,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2759.98,
-      "drawdown": 0.0588
-    },
-    {
-      "timestamp": "2026-05-19T17:47:58.763021+00:00",
-      "portfolio_value": 1026515.33,
-      "cash": 1026515.33,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T17:50:11.403267+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T17:52:24.882188+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T17:54:37.490064+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T17:56:50.870634+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T17:59:04.408659+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:01:17.595347+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:03:31.524742+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:05:43.750839+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:08:01.819492+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:10:15.717366+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:12:27.686851+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:14:41.833364+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:16:55.437982+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:19:07.954466+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:21:21.760177+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:23:34.230012+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:25:46.961752+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:27:59.927085+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:30:15.334790+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:32:28.697700+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:34:41.068928+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:36:54.052443+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:39:06.818490+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:41:20.785910+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:43:34.775948+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:45:47.916250+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:47:59.483761+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:50:13.115965+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:52:25.559765+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:54:37.473446+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:56:49.525049+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T18:59:01.602302+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:01:13.788251+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:03:27.114466+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:05:42.200470+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:07:55.119271+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:10:07.449257+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:12:19.525983+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:14:31.320264+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:16:44.138758+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:18:55.959740+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:21:11.416406+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:23:26.031670+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:25:38.095691+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:27:50.418616+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-19T19:30:02.574805+00:00",
-      "portfolio_value": 1026498.13,
-      "cash": 1026498.13,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-20T13:30:29.312258+00:00",
-      "portfolio_value": 1026497.86,
-      "cash": 1026497.86,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.059
-    },
-    {
-      "timestamp": "2026-05-20T13:32:35.642155+00:00",
-      "portfolio_value": 1026674.59,
-      "cash": 1026674.59,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 2175.18,
-      "drawdown": 0.0589
-    },
-    {
-      "timestamp": "2026-05-20T13:34:48.000704+00:00",
-      "portfolio_value": 1025503.24,
-      "cash": 1025503.24,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:37:08.618230+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:39:28.075827+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:41:54.788989+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:44:10.984158+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:46:33.898072+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:48:56.793543+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:51:14.115952+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:53:33.043155+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:55:52.422083+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T13:58:11.828089+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:00:36.385262+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:02:55.991615+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:05:13.627580+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:07:32.180400+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:09:50.979662+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:12:10.343773+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:14:29.739214+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:16:54.737209+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:19:18.698013+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:21:42.866331+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:24:08.699862+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:26:31.965215+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:28:56.632576+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:31:20.106269+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:33:43.480733+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:36:07.723537+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:38:32.752098+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:41:01.331800+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:43:26.542522+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:45:51.841209+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:48:17.661064+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:50:43.273518+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:53:07.140217+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:55:33.804049+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T14:58:01.433814+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:00:27.599683+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:02:53.682630+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:05:17.766630+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:07:40.665383+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:10:04.719314+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:12:29.286209+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:14:52.527689+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:17:17.273441+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:19:41.839703+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:22:08.139616+00:00",
-      "portfolio_value": 1025500.83,
-      "cash": 1025500.83,
+      "timestamp": "2026-05-21T13:30:54.574212+00:00",
+      "portfolio_value": 1024085.27,
+      "cash": 1024085.27,
       "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
-    },
-    {
-      "timestamp": "2026-05-20T15:24:29.171137+00:00",
-      "portfolio_value": 1025317.61,
-      "cash": 1025317.61,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0601
-    },
-    {
-      "timestamp": "2026-05-20T15:26:52.920185+00:00",
-      "portfolio_value": 1025407.38,
-      "cash": 1025407.38,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.06
-    },
-    {
-      "timestamp": "2026-05-20T15:29:22.111503+00:00",
-      "portfolio_value": 1025426.28,
-      "cash": 1025426.28,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.06
-    },
-    {
-      "timestamp": "2026-05-20T15:31:39.914470+00:00",
-      "portfolio_value": 1025450.43,
-      "cash": 1025450.43,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.06
-    },
-    {
-      "timestamp": "2026-05-20T15:33:57.890853+00:00",
-      "portfolio_value": 1025450.43,
-      "cash": 1025450.43,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.06
-    },
-    {
-      "timestamp": "2026-05-20T15:36:16.611334+00:00",
-      "portfolio_value": 1025517.63,
-      "cash": 1025517.63,
-      "open_positions": 1,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
+      "total_pnl": -283.55,
+      "drawdown": 0.0612
     },
     {
-      "timestamp": "2026-05-20T15:38:28.287174+00:00",
-      "portfolio_value": 1025628.29,
-      "cash": 1025628.29,
+      "timestamp": "2026-05-21T13:33:01.167292+00:00",
+      "portfolio_value": 1024238.01,
+      "cash": 1024238.01,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0598
+      "total_pnl": -283.55,
+      "drawdown": 0.0611
     },
     {
-      "timestamp": "2026-05-20T15:40:40.866792+00:00",
-      "portfolio_value": 1025303.78,
-      "cash": 1025303.78,
+      "timestamp": "2026-05-21T13:35:13.420852+00:00",
+      "portfolio_value": 1024467.16,
+      "cash": 1024467.16,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0601
+      "total_pnl": -283.55,
+      "drawdown": 0.0609
     },
     {
-      "timestamp": "2026-05-20T15:42:51.513706+00:00",
-      "portfolio_value": 1025502.11,
-      "cash": 1025502.11,
+      "timestamp": "2026-05-21T13:37:24.955917+00:00",
+      "portfolio_value": 1024807.24,
+      "cash": 1024807.24,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
+      "total_pnl": 11.47,
+      "drawdown": 0.0606
     },
     {
-      "timestamp": "2026-05-20T15:45:03.101988+00:00",
-      "portfolio_value": 1025493.26,
-      "cash": 1025493.26,
+      "timestamp": "2026-05-21T13:39:31.477947+00:00",
+      "portfolio_value": 1024525.93,
+      "cash": 1024525.93,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0599
+      "total_pnl": 11.47,
+      "drawdown": 0.0608
     },
     {
-      "timestamp": "2026-05-20T15:47:15.539059+00:00",
-      "portfolio_value": 1025620.36,
-      "cash": 1025620.36,
+      "timestamp": "2026-05-21T13:41:37.348891+00:00",
+      "portfolio_value": 1025041.16,
+      "cash": 1025041.16,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0598
+      "total_pnl": 11.47,
+      "drawdown": 0.0604
     },
     {
-      "timestamp": "2026-05-20T15:49:26.749146+00:00",
-      "portfolio_value": 1025622.41,
-      "cash": 1025622.41,
+      "timestamp": "2026-05-21T13:43:43.375376+00:00",
+      "portfolio_value": 1024609.54,
+      "cash": 1024609.54,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0598
+      "total_pnl": 11.47,
+      "drawdown": 0.0607
     },
     {
-      "timestamp": "2026-05-20T15:51:37.561006+00:00",
-      "portfolio_value": 1025755.31,
-      "cash": 1025755.31,
+      "timestamp": "2026-05-21T13:45:49.912161+00:00",
+      "portfolio_value": 1024972.39,
+      "cash": 1024972.39,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0597
+      "total_pnl": 11.47,
+      "drawdown": 0.0604
     },
     {
-      "timestamp": "2026-05-20T15:53:51.169980+00:00",
-      "portfolio_value": 1025705.56,
-      "cash": 1025705.56,
+      "timestamp": "2026-05-21T13:47:55.937265+00:00",
+      "portfolio_value": 1024849.42,
+      "cash": 1024849.42,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0597
+      "total_pnl": 11.47,
+      "drawdown": 0.0605
     },
     {
-      "timestamp": "2026-05-20T15:56:02.456252+00:00",
-      "portfolio_value": 1025759.08,
-      "cash": 1025759.08,
+      "timestamp": "2026-05-21T13:50:02.168546+00:00",
+      "portfolio_value": 1025069.56,
+      "cash": 1025069.56,
       "open_positions": 2,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0597
+      "total_pnl": 903.34,
+      "drawdown": 0.0603
     },
     {
-      "timestamp": "2026-05-20T15:58:12.677507+00:00",
-      "portfolio_value": 1025600.34,
-      "cash": 1025600.34,
-      "open_positions": 2,
+      "timestamp": "2026-05-21T13:52:10.493974+00:00",
+      "portfolio_value": 1024822.19,
+      "cash": 1024822.19,
+      "open_positions": 1,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0598
+      "total_pnl": 903.34,
+      "drawdown": 0.0606
     },
     {
-      "timestamp": "2026-05-20T16:00:26.697434+00:00",
-      "portfolio_value": 1025737.92,
-      "cash": 1025737.92,
-      "open_positions": 2,
+      "timestamp": "2026-05-21T13:54:16.373640+00:00",
+      "portfolio_value": 1024754.59,
+      "cash": 1024754.59,
+      "open_positions": 1,
       "daily_pnl": 0.0,
-      "total_pnl": 1357.29,
-      "drawdown": 0.0597
+      "total_pnl": 903.34,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T13:56:21.916701+00:00",
+      "portfolio_value": 1024866.39,
+      "cash": 1024866.39,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 903.34,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T13:58:28.300877+00:00",
+      "portfolio_value": 1024777.47,
+      "cash": 1024777.47,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 903.34,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T14:00:35.767450+00:00",
+      "portfolio_value": 1024688.55,
+      "cash": 1024688.55,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 903.34,
+      "drawdown": 0.0607
+    },
+    {
+      "timestamp": "2026-05-21T14:02:42.309115+00:00",
+      "portfolio_value": 1024826.35,
+      "cash": 1024826.35,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 903.34,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T14:04:48.527175+00:00",
+      "portfolio_value": 1024765.51,
+      "cash": 1024765.51,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 903.34,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T14:06:54.528701+00:00",
+      "portfolio_value": 1024561.46,
+      "cash": 1024561.46,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:09:00.290998+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:11:06.676515+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:13:12.669846+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:15:19.852524+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:17:25.733177+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:19:31.453634+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:21:37.467823+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:23:44.001255+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:25:50.222953+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:27:55.890723+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:30:01.980677+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:32:08.848317+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:34:15.566027+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:36:22.033665+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:38:28.754525+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:40:35.176157+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:42:41.447066+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:44:47.776103+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:46:53.913079+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:48:59.860359+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:51:06.301099+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:53:12.291799+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:55:18.966295+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:57:24.630988+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T14:59:30.338881+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:01:36.918323+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:03:43.149305+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:05:48.994459+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:07:55.308524+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:10:00.938868+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:12:06.861552+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:14:12.437581+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:16:19.444875+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:18:25.368164+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:20:32.439679+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:22:38.492109+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:24:44.566061+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:26:50.456454+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:28:56.152303+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:31:03.193502+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:33:10.247822+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:35:18.934972+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:37:24.505771+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:39:30.637490+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:41:36.877442+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:43:42.713736+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:45:48.851742+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:47:54.844291+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:50:02.326481+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:52:08.135932+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:54:13.927887+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:56:20.501555+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T15:58:26.698243+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:00:33.708645+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:02:40.282064+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:04:46.516823+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:06:52.743793+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:08:58.531955+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:11:04.319352+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:13:11.229659+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:15:18.820241+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:17:24.672128+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:19:30.178639+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:21:36.488225+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:23:42.126373+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:25:47.971522+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:27:53.961071+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:29:59.912294+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:32:07.281401+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:34:13.153692+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:36:19.082222+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:38:25.095402+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:40:31.706496+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:42:37.740311+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:44:43.994815+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:46:49.421429+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:48:55.102208+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:51:01.019935+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:53:07.113645+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:55:14.078408+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:57:20.159703+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T16:59:25.795728+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:01:33.224957+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:03:39.069638+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:05:45.221391+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:07:51.035102+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:09:56.847233+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:12:03.780892+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:14:33.718362+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:16:40.798831+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:18:47.117522+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:20:53.451005+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:22:59.135688+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:25:05.014413+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:27:11.566702+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:29:17.176722+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:31:23.578561+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:33:29.993128+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:35:36.411693+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:37:42.749593+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:39:48.478852+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:41:54.422958+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:44:06.543732+00:00",
+      "portfolio_value": 1024584.99,
+      "cash": 1024584.99,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T17:46:13.856679+00:00",
+      "portfolio_value": 1024620.98,
+      "cash": 1024620.98,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0607
+    },
+    {
+      "timestamp": "2026-05-21T17:48:19.715949+00:00",
+      "portfolio_value": 1024638.98,
+      "cash": 1024638.98,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0607
+    },
+    {
+      "timestamp": "2026-05-21T17:50:26.554753+00:00",
+      "portfolio_value": 1024782.94,
+      "cash": 1024782.94,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T17:52:32.198222+00:00",
+      "portfolio_value": 1024861.39,
+      "cash": 1024861.39,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T17:54:37.981376+00:00",
+      "portfolio_value": 1024782.94,
+      "cash": 1024782.94,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T17:56:44.067924+00:00",
+      "portfolio_value": 1024825.04,
+      "cash": 1024825.04,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T17:58:49.769856+00:00",
+      "portfolio_value": 1024908.9,
+      "cash": 1024908.9,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T18:00:57.244913+00:00",
+      "portfolio_value": 1024944.89,
+      "cash": 1024944.89,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:03:03.042199+00:00",
+      "portfolio_value": 1024854.92,
+      "cash": 1024854.92,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T18:05:10.260973+00:00",
+      "portfolio_value": 1024728.95,
+      "cash": 1024728.95,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T18:07:16.363423+00:00",
+      "portfolio_value": 1024746.95,
+      "cash": 1024746.95,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T18:09:22.486500+00:00",
+      "portfolio_value": 1024818.93,
+      "cash": 1024818.93,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T18:11:29.018571+00:00",
+      "portfolio_value": 1024800.93,
+      "cash": 1024800.93,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T18:13:35.196911+00:00",
+      "portfolio_value": 1024800.93,
+      "cash": 1024800.93,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T18:15:41.520406+00:00",
+      "portfolio_value": 1024854.92,
+      "cash": 1024854.92,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T18:17:47.728549+00:00",
+      "portfolio_value": 1024890.91,
+      "cash": 1024890.91,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T18:19:53.762551+00:00",
+      "portfolio_value": 1025016.87,
+      "cash": 1025016.87,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:21:59.989001+00:00",
+      "portfolio_value": 1025034.87,
+      "cash": 1025034.87,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:24:06.342101+00:00",
+      "portfolio_value": 1025010.39,
+      "cash": 1025010.39,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:26:14.121310+00:00",
+      "portfolio_value": 1024962.89,
+      "cash": 1024962.89,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:28:20.067497+00:00",
+      "portfolio_value": 1024962.89,
+      "cash": 1024962.89,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:30:28.397040+00:00",
+      "portfolio_value": 1024998.88,
+      "cash": 1024998.88,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:32:35.388169+00:00",
+      "portfolio_value": 1024998.88,
+      "cash": 1024998.88,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:34:42.313735+00:00",
+      "portfolio_value": 1024998.88,
+      "cash": 1024998.88,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:36:48.800608+00:00",
+      "portfolio_value": 1025016.51,
+      "cash": 1025016.51,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:38:55.459846+00:00",
+      "portfolio_value": 1024980.88,
+      "cash": 1024980.88,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:41:03.540974+00:00",
+      "portfolio_value": 1024950.65,
+      "cash": 1024950.65,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:43:11.254482+00:00",
+      "portfolio_value": 1024944.89,
+      "cash": 1024944.89,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:45:20.509916+00:00",
+      "portfolio_value": 1024890.91,
+      "cash": 1024890.91,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T18:47:27.398245+00:00",
+      "portfolio_value": 1024890.91,
+      "cash": 1024890.91,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0605
+    },
+    {
+      "timestamp": "2026-05-21T18:49:33.222530+00:00",
+      "portfolio_value": 1024818.93,
+      "cash": 1024818.93,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T18:51:40.102235+00:00",
+      "portfolio_value": 1024962.89,
+      "cash": 1024962.89,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0604
+    },
+    {
+      "timestamp": "2026-05-21T18:53:46.523452+00:00",
+      "portfolio_value": 1024758.1,
+      "cash": 1024758.1,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 353.18,
+      "drawdown": 0.0606
+    },
+    {
+      "timestamp": "2026-05-21T18:55:52.618959+00:00",
+      "portfolio_value": 1024513.01,
+      "cash": 1024513.01,
+      "open_positions": 1,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0608
+    },
+    {
+      "timestamp": "2026-05-21T18:57:58.310398+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:00:12.243236+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:02:24.550827+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:04:36.336309+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:06:49.862222+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:09:02.484844+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:11:09.069323+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:13:15.018769+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:15:21.431111+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:17:27.422396+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:19:33.442289+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:21:39.264844+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:23:45.427258+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:25:51.133851+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:27:56.768536+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
+    },
+    {
+      "timestamp": "2026-05-21T19:30:04.374010+00:00",
+      "portfolio_value": 1024477.02,
+      "cash": 1024477.02,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": 173.23,
+      "drawdown": 0.0609
     }
   ]
 }

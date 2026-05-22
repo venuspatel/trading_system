@@ -2,7 +2,7 @@
   "approach": "Micro Momentum",
   "user_goal": "Grow capital steadily",
   "market": "US stocks",
-  "min_strategies_agree": 3,
+  "min_strategies_agree": 1,
   "confidence_threshold": 0.65,
   "min_conviction_score": 1.5,
   "sizing_method": "Confidence-Scaled",
@@ -19,14 +19,21 @@
   "earnings_blackout_days": 3,
   "regime_filter": true,
   "watchlist": [
-    "AAPL",
+    "NVDA",
+    "AMD",
     "TSLA",
-    "NVDA",
-    "AMZN",
-    "PLTR",
-    "NVDA",
+    "META",
     "COIN",
-    "META"
+    "PLTR",
+    "AAPL",
+    "MSFT",
+    "AMZN",
+    "AVGO",
+    "ARM",
+    "GOOGL",
+    "JPM",
+    "SOFI",
+    "HIMS"
   ],
   "enabled_strategies": [
     "Momentum",
@@ -62,5 +69,6 @@
     "drawdown_circuit_breaker": false,
     "sector_concentration": false,
     "news_sentiment": false
-  }
+  },
+  "intraday_interval_min": 1
 }

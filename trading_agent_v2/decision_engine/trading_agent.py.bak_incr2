@@ -1753,9 +1753,6 @@ class TradingAgent:
                     order = self._executor.execute(d)
                     if order:
                         logger.info(f"[Agent] Order result: {order}")
-                        if d.action == "BUY":
-                            self._symbol_trade_count[d.symbol] = self._symbol_trade_count.get(d.symbol, 0) + 1
-                            logger.debug(f"[Agent] {d.symbol} trades today: {self._symbol_trade_count[d.symbol]}")
 
         if self._on_scan_complete:
             self._on_scan_complete(decisions)

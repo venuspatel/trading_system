@@ -1381,7 +1381,6 @@ class TradingAgent:
                             # Fix 1: Mark stop-loss exits with 2hr cooldown to prevent re-entry
                             if "stop" in (sig.reason or "").lower() or "Stop" in (sig.reason or ""):
                                 self._scheduler.mark_stopped_out(sig.symbol, cooldown_minutes=120)
-                                self._symbol_loss_count[sig.symbol] = self._symbol_loss_count.get(sig.symbol, 0) + 1
 
                             # Record completed trade in portfolio tracker
                             if order and entry_price > 0:
@@ -1427,9 +1426,6 @@ class TradingAgent:
                                 # Wins can re-enter freely — don't block profitable momentum
                                 if pnl < 0:
                                     self._scheduler.mark_stopped_out(symbol, cooldown_minutes=60)
-                                    self._symbol_loss_count[symbol] = self._symbol_loss_count.get(symbol, 0) + 1
-                                else:
-                                    self._symbol_loss_count[symbol] = 0  # reset on win
 
                         elif sig.action == "PARTIAL_SELL":
                             order = self._executor._close_partial(sig.symbol, sig.shares)
@@ -1522,8 +1518,6 @@ class TradingAgent:
         if not hasattr(self, '_last_trade_date') or self._last_trade_date != today_date:
             self._last_trade_date = today_date
             self._scheduler.reset_daily_guards()
-            self._symbol_trade_count = {}
-            self._symbol_loss_count  = {}
             logger.info(f"[Agent] New day {today_date} — guards reset")
 
         for d in decisions:
@@ -1570,18 +1564,6 @@ class TradingAgent:
                     if not _cd_ok:
                         logger.warning(f"[TickerCooldown] {d.symbol} BLOCKED — {_cd_reason}")
                         continue
-                # ── Churn prevention — max trades + consecutive loss block ──
-                if d.action == 'BUY':
-                    _max_t = getattr(self.config, 'max_trades_per_symbol', 3)
-                    _sym_trades = getattr(self, '_symbol_trade_count', {}).get(d.symbol, 0)
-                    if _sym_trades >= _max_t:
-                        logger.warning(f"[Agent] {d.symbol} BLOCKED — max {_max_t} trades/day reached ({_sym_trades} done)")
-                        continue
-                    _sym_losses = getattr(self, '_symbol_loss_count', {}).get(d.symbol, 0)
-                    if _sym_losses >= 2:
-                        logger.warning(f"[Agent] {d.symbol} BLOCKED — {_sym_losses} consecutive losses today, full-day block")
-                        continue
-
                 # ── EOD Entry Gate ───────────────────────────────────────
                 # Block new BUY entries after 12:00 PM PST (3:00 PM ET) unless
                 # a legitimate catalyst justifies the late entry.
@@ -1753,9 +1735,6 @@ class TradingAgent:
                     order = self._executor.execute(d)
                     if order:
                         logger.info(f"[Agent] Order result: {order}")
-                        if d.action == "BUY":
-                            self._symbol_trade_count[d.symbol] = self._symbol_trade_count.get(d.symbol, 0) + 1
-                            logger.debug(f"[Agent] {d.symbol} trades today: {self._symbol_trade_count[d.symbol]}")
 
         if self._on_scan_complete:
             self._on_scan_complete(decisions)
