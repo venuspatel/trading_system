@@ -57,8 +57,7 @@ class AlpacaExecutor:
         self._connected  = False
 
         # Local position + order tracking
-        self._positions:   Dict[str, Position] = {}
-        self._today_fills: Dict[str, float]    = {}  # FILL_PRICE_CACHE — populated once per session
+        self._positions:  Dict[str, Position] = {}
         self._orders:     Dict[str, Order]    = {}   # keyed by client_order_id
 
     # ------------------------------------------------------------------
@@ -170,7 +169,6 @@ class AlpacaExecutor:
                 )
                 self._positions[symbol].tp_order_id = tp_order.client_order_id
 
-            self._today_fills[symbol] = fill_price  # keep cache current
             logger.info(
                 f"[Executor] OPENED {symbol}: {qty} shares @ ${fill_price:.2f} | "
                 f"stop=${decision.stop_loss:.2f} tp=${decision.take_profit:.2f}"
@@ -285,54 +283,46 @@ class AlpacaExecutor:
                     del self._positions[symbol]
 
             # Import any Alpaca positions not yet tracked locally
-            # FILL_PRICE_CACHE — fetch orders API only once per session
-            if not self._today_fills:
-                # FILL_PRICE_FROM_ORDERS — architectural fix 2026-05-22
-                # Always use today's BUY order fill price, never avg_entry_price.
-                # avg_entry_price = Alpaca's lifetime blended cost basis across ALL sessions.
-                # e.g. ARM bought at $163 for months, today's fill $307 →
-                #      avg_entry_price=$163 causes phantom +$53k P&L when stop fires at $305.
-                from datetime import datetime, timezone, timedelta
-                import urllib.request as _ur, json as _json
+            # FILL_PRICE_FROM_ORDERS — architectural fix 2026-05-22
+            # Always use today's BUY order fill price, never avg_entry_price.
+            # avg_entry_price = Alpaca's lifetime blended cost basis across ALL sessions.
+            # e.g. ARM bought at $163 for months, today's fill $307 →
+            #      avg_entry_price=$163 causes phantom +$53k P&L when stop fires at $305.
+            from datetime import datetime, timezone, timedelta
+            import urllib.request as _ur, json as _json
 
-                # Fetch today's filled BUY orders once for all symbols
-                _today_fills: dict = {}  # symbol → fill_price from today's BUY orders
-                try:
-                    _base_url = (
-                        "https://paper-api.alpaca.markets"
-                        if self._paper else "https://api.alpaca.markets"
-                    )
-                    _utc_midnight = datetime.now(timezone.utc).replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-                    _hdrs = {
-                        "APCA-API-KEY-ID":     self._api_key,
-                        "APCA-API-SECRET-KEY": self._secret_key,
-                    }
-                    _req = _ur.Request(
-                        f"{_base_url}/v2/orders"
-                        f"?status=all&after={_utc_midnight}&limit=200&direction=asc",
-                        headers=_hdrs
-                    )
-                    _orders = _json.loads(_ur.urlopen(_req, timeout=8).read())
-                    for _o in _orders:
-                        if (str(_o.get("side", "")).lower() == "buy"
-                                and str(_o.get("status", "")).lower() == "filled"
-                                and _o.get("filled_avg_price")):
-                            _sym = str(_o.get("symbol", "")).upper()
-                            # Keep the latest fill price for each symbol
-                            self._today_fills[_sym] = float(_o["filled_avg_price"])
-                    logger.info(
-                        f"[Executor] Today's fill prices loaded: {list(_today_fills.keys())}"
-                    )
-                except Exception as _fe:
-                    logger.warning(f"[Executor] Could not fetch today fills: {_fe}")
-
-                logger.info(
-                    f"[Executor] Today fill prices cached: "
-                    f"{list(self._today_fills.keys())}"
+            # Fetch today's filled BUY orders once for all symbols
+            _today_fills: dict = {}  # symbol → fill_price from today's BUY orders
+            try:
+                _base_url = (
+                    "https://paper-api.alpaca.markets"
+                    if self._paper else "https://api.alpaca.markets"
                 )
-            _today_fills = self._today_fills
+                _utc_midnight = datetime.now(timezone.utc).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                ).strftime("%Y-%m-%dT%H:%M:%SZ")
+                _hdrs = {
+                    "APCA-API-KEY-ID":     self._api_key,
+                    "APCA-API-SECRET-KEY": self._secret_key,
+                }
+                _req = _ur.Request(
+                    f"{_base_url}/v2/orders"
+                    f"?status=all&after={_utc_midnight}&limit=200&direction=asc",
+                    headers=_hdrs
+                )
+                _orders = _json.loads(_ur.urlopen(_req, timeout=8).read())
+                for _o in _orders:
+                    if (str(_o.get("side", "")).lower() == "buy"
+                            and str(_o.get("status", "")).lower() == "filled"
+                            and _o.get("filled_avg_price")):
+                        _sym = str(_o.get("symbol", "")).upper()
+                        # Keep the latest fill price for each symbol
+                        _today_fills[_sym] = float(_o["filled_avg_price"])
+                logger.info(
+                    f"[Executor] Today's fill prices loaded: {list(_today_fills.keys())}"
+                )
+            except Exception as _fe:
+                logger.warning(f"[Executor] Could not fetch today fills: {_fe}")
 
             for symbol, ap in alpaca_pos_map.items():
                 if symbol not in self._positions:

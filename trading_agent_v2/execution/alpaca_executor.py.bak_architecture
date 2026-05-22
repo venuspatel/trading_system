@@ -57,8 +57,7 @@ class AlpacaExecutor:
         self._connected  = False
 
         # Local position + order tracking
-        self._positions:   Dict[str, Position] = {}
-        self._today_fills: Dict[str, float]    = {}  # FILL_PRICE_CACHE — populated once per session
+        self._positions:  Dict[str, Position] = {}
         self._orders:     Dict[str, Order]    = {}   # keyed by client_order_id
 
     # ------------------------------------------------------------------
@@ -170,7 +169,6 @@ class AlpacaExecutor:
                 )
                 self._positions[symbol].tp_order_id = tp_order.client_order_id
 
-            self._today_fills[symbol] = fill_price  # keep cache current
             logger.info(
                 f"[Executor] OPENED {symbol}: {qty} shares @ ${fill_price:.2f} | "
                 f"stop=${decision.stop_loss:.2f} tp=${decision.take_profit:.2f}"
@@ -274,9 +272,9 @@ class AlpacaExecutor:
                     ap = alpaca_pos_map[symbol]
                     pos.current_price = float(ap.current_price)
                     pos.qty           = int(ap.qty)
-                    # entry_price is immutable once set from the fill.
-                    # Never overwrite with avg_entry_price (lifetime blended basis).
-                    # current_price and qty are the only fields synced from Alpaca.
+                    # Fix: update entry_price if missing
+                    if pos.entry_price == 0.0:
+                        pos.entry_price = float(ap.avg_entry_price)
                 else:
                     # Position no longer exists — stop or TP was hit
                     logger.info(
@@ -285,83 +283,33 @@ class AlpacaExecutor:
                     del self._positions[symbol]
 
             # Import any Alpaca positions not yet tracked locally
-            # FILL_PRICE_CACHE — fetch orders API only once per session
-            if not self._today_fills:
-                # FILL_PRICE_FROM_ORDERS — architectural fix 2026-05-22
-                # Always use today's BUY order fill price, never avg_entry_price.
-                # avg_entry_price = Alpaca's lifetime blended cost basis across ALL sessions.
-                # e.g. ARM bought at $163 for months, today's fill $307 →
-                #      avg_entry_price=$163 causes phantom +$53k P&L when stop fires at $305.
-                from datetime import datetime, timezone, timedelta
-                import urllib.request as _ur, json as _json
-
-                # Fetch today's filled BUY orders once for all symbols
-                _today_fills: dict = {}  # symbol → fill_price from today's BUY orders
-                try:
-                    _base_url = (
-                        "https://paper-api.alpaca.markets"
-                        if self._paper else "https://api.alpaca.markets"
-                    )
-                    _utc_midnight = datetime.now(timezone.utc).replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-                    _hdrs = {
-                        "APCA-API-KEY-ID":     self._api_key,
-                        "APCA-API-SECRET-KEY": self._secret_key,
-                    }
-                    _req = _ur.Request(
-                        f"{_base_url}/v2/orders"
-                        f"?status=all&after={_utc_midnight}&limit=200&direction=asc",
-                        headers=_hdrs
-                    )
-                    _orders = _json.loads(_ur.urlopen(_req, timeout=8).read())
-                    for _o in _orders:
-                        if (str(_o.get("side", "")).lower() == "buy"
-                                and str(_o.get("status", "")).lower() == "filled"
-                                and _o.get("filled_avg_price")):
-                            _sym = str(_o.get("symbol", "")).upper()
-                            # Keep the latest fill price for each symbol
-                            self._today_fills[_sym] = float(_o["filled_avg_price"])
-                    logger.info(
-                        f"[Executor] Today's fill prices loaded: {list(_today_fills.keys())}"
-                    )
-                except Exception as _fe:
-                    logger.warning(f"[Executor] Could not fetch today fills: {_fe}")
-
-                logger.info(
-                    f"[Executor] Today fill prices cached: "
-                    f"{list(self._today_fills.keys())}"
-                )
-            _today_fills = self._today_fills
-
+            # Skip positions older than 1 trading day — they cause phantom stop-outs
+            from datetime import datetime, timezone, timedelta
+            _cutoff = datetime.now(timezone.utc) - timedelta(hours=20)
             for symbol, ap in alpaca_pos_map.items():
                 if symbol not in self._positions:
-                    curr = float(ap.current_price)
-                    qty  = int(ap.qty)
-
-                    # Use today's fill price — the price we actually paid
-                    if symbol in _today_fills:
-                        entry = _today_fills[symbol]
-                        logger.info(
-                            f"[Executor] Imported {symbol} from Alpaca: "
-                            f"{qty} shares @ ${entry:.2f} (today fill price)"
-                        )
-                    else:
-                        # No today fill found — this is a position from a previous session.
-                        # Skip it. We cannot know the correct entry price.
-                        # avg_entry_price would be the blended lifetime cost basis = wrong.
+                    entry = float(ap.avg_entry_price)
+                    curr  = float(ap.current_price)
+                    qty   = int(ap.qty)
+                    # Check position age via asset_id timestamp if available
+                    _raw_time = getattr(ap, 'lastday_price', None) or getattr(ap, 'change_today', None)
+                    # Skip if entry price differs wildly from current (stale position signal)
+                    _price_drift = abs(curr - entry) / entry if entry > 0 else 0
+                    if _price_drift > 0.03:  # >3% drift = stale position (V2 stop=0.4% TP=0.8%)
                         logger.warning(
-                            f"[Executor] SKIPPED import {symbol}: "
-                            f"no today fill found, avg_entry=${float(ap.avg_entry_price):.2f} "
-                            f"is lifetime basis — cannot use for P&L"
+                            f"[Executor] SKIPPED stale import {symbol}: "
+                            f"entry=${entry:.2f} current=${curr:.2f} drift={_price_drift:.1%}"
                         )
                         continue
-
                     self._positions[symbol] = Position(
                         symbol        = symbol,
                         qty           = qty,
                         entry_price   = entry,
                         current_price = curr,
+                    )
+                    logger.info(
+                        f"[Executor] Imported {symbol} from Alpaca: "
+                        f"{qty} shares @ ${entry:.2f} (was missing locally)"
                     )
 
         except Exception as exc:

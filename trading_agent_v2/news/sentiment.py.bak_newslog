@@ -207,7 +207,7 @@ class SentimentEngine:
             top_negative   = top_negative,
         )
 
-        logger.debug(
+        logger.info(
             f"[Sentiment] {news.symbol}: score={avg_score:+.2f} "
             f"conf={confidence:.0%} grade={grade} signal={signal}"
         )

@@ -215,15 +215,7 @@ class AIConfigurator:
             return []
 
     def _fetch_news_sentiment(self) -> Dict:
-        """Fetch news sentiment for watchlist via NewsFetcher + SentimentEngine.
-        NEWS_CACHE_FIRST: reads agent._cached_news if available.
-        """
-        _cached = getattr(self._agent, '_cached_news', {}) if self._agent else {}
-        if _cached:
-            logger.info(
-                f"[AIConfig] News: using cached ({len(_cached)} symbols)"
-            )
-            return _cached
+        """Fetch news sentiment for watchlist via NewsFetcher + SentimentEngine."""
         try:
             import os as _os, socket as _sock
             _sock.setdefaulttimeout(5)   # hard socket timeout — never block

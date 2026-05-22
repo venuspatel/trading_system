@@ -226,21 +226,6 @@ class TradingAgent:
         )
         self._thread.start()
         self._notify_status()
-        # STARTUP_NEWS_BACKGROUND
-        import threading as _sn_th
-        def _startup_news():
-            try:
-                f = getattr(self, '_news_fetcher', None)
-                s = getattr(self, '_sentiment_eng', None)
-                wl = self.config.watchlist or []
-                if f and s and wl:
-                    m  = f.fetch_watchlist(wl[:15])
-                    sc = s.score_watchlist(m)
-                    self.update_news_cache({k: v.to_dict() for k,v in sc.items()})
-                    logger.debug(f"[Agent] Startup news warm: {len(sc)} symbols")
-            except Exception as _e:
-                logger.debug(f"[Agent] Startup news failed: {_e}")
-        _sn_th.Thread(target=_startup_news,daemon=True,name="startup-news").start()
         logger.info(f"[Agent] Started — {self.config}")
 
     def pause(self):
@@ -1105,7 +1090,7 @@ class TradingAgent:
                         scores     = _scorer.score_watchlist(news_map)
                         news_cache = {sym: s.to_dict() for sym, s in scores.items()}
                         self.update_news_cache(news_cache)
-                        logger.debug(f"[Agent] Auto news refresh: {len(news_cache)} symbols scored")
+                        logger.info(f"[Agent] Auto news refresh: {len(news_cache)} symbols scored")
                 except Exception as _ne:
                     logger.debug(f"[Agent] Auto news refresh failed: {_ne}")
             _th.Thread(target=_auto_news_refresh, daemon=True, name="auto-news-refresh").start()

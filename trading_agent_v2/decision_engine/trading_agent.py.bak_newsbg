@@ -226,21 +226,6 @@ class TradingAgent:
         )
         self._thread.start()
         self._notify_status()
-        # STARTUP_NEWS_BACKGROUND
-        import threading as _sn_th
-        def _startup_news():
-            try:
-                f = getattr(self, '_news_fetcher', None)
-                s = getattr(self, '_sentiment_eng', None)
-                wl = self.config.watchlist or []
-                if f and s and wl:
-                    m  = f.fetch_watchlist(wl[:15])
-                    sc = s.score_watchlist(m)
-                    self.update_news_cache({k: v.to_dict() for k,v in sc.items()})
-                    logger.debug(f"[Agent] Startup news warm: {len(sc)} symbols")
-            except Exception as _e:
-                logger.debug(f"[Agent] Startup news failed: {_e}")
-        _sn_th.Thread(target=_startup_news,daemon=True,name="startup-news").start()
         logger.info(f"[Agent] Started — {self.config}")
 
     def pause(self):
@@ -755,28 +740,33 @@ class TradingAgent:
             self._run_gap_scan()
             # ── AI pre-market morning brief ──────────────────────────
             if getattr(self, '_ai_configurator', None):
-                # PREMARKET_EVAL_BACKGROUND — run in bg so news fetch
-                # (4+ min for 15 symbols) doesn't block Cycle #2
-                import threading as _pm_th
-                def _run_premarket_eval():
-                    try:
-                        self._ai_configurator._last_reconfig_time  = 0.0
-                        self._ai_configurator._last_watchlist_time = 0.0
-                        self._ai_configurator._is_premarket_call   = True
-                        snap = self._ai_configurator.evaluate(force=True)
-                        self._ai_configurator._is_premarket_call   = False
-                        if snap:
+                try:
+                    # Flag this as a premarket scan so signal packet
+                    # fetches news + earnings + premarket scores
+                    self._ai_configurator._last_reconfig_time  = 0.0
+                    self._ai_configurator._last_watchlist_time  = 0.0
+                    # Set flag on configurator so _build_signal_packet knows
+                    self._ai_configurator._is_premarket_call = True
+                    snap = self._ai_configurator.evaluate(force=True)
+                    self._ai_configurator._is_premarket_call = False
+                    if snap:
+                        logger.info(
+                            f"[Agent] AI PRE-MARKET brief: {snap.decision.upper()} | "
+                            f"{snap.trigger}"
+                        )
+                        logger.info(f"[Agent] AI reasoning: {snap.reasoning[:120]}")
+                        if snap.new_watchlist:
                             logger.info(
-                                f"[Agent] AI PRE-MARKET: {snap.decision.upper()} | "
-                                f"{snap.trigger}"
+                                f"[Agent] Pre-market watchlist ({len(snap.new_watchlist)}): "
+                                + ", ".join(snap.new_watchlist[:12])
+                                + ("..." if len(snap.new_watchlist) > 12 else "")
                             )
-                    except Exception as _pme:
-                        logger.warning(f"[Agent] Premarket eval error: {_pme}")
-                _pm_th.Thread(
-                    target=_run_premarket_eval, daemon=True,
-                    name="premarket-ai-eval"
-                ).start()
-                logger.info("[Agent] Premarket AI eval running in background")
+                        if snap.changes:
+                            logger.info(f"[Agent] Pre-market config changes: "
+                                + ", ".join(f"{k}: {v['before']}→{v['after']}"
+                                            for k,v in snap.changes.items()))
+                except Exception as _pm_err:
+                    logger.warning(f"[Agent] AI pre-market brief failed: {_pm_err}")
             return
 
         # Phase B: 3:45 PM — smart close (skip positions flagged for overnight hold)
@@ -1105,7 +1095,7 @@ class TradingAgent:
                         scores     = _scorer.score_watchlist(news_map)
                         news_cache = {sym: s.to_dict() for sym, s in scores.items()}
                         self.update_news_cache(news_cache)
-                        logger.debug(f"[Agent] Auto news refresh: {len(news_cache)} symbols scored")
+                        logger.info(f"[Agent] Auto news refresh: {len(news_cache)} symbols scored")
                 except Exception as _ne:
                     logger.debug(f"[Agent] Auto news refresh failed: {_ne}")
             _th.Thread(target=_auto_news_refresh, daemon=True, name="auto-news-refresh").start()
