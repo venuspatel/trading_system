@@ -1,344 +1,284 @@
 # TradeAgent — PROJECT HANDOFF
-**Date:** May 22, 2026 | **V1 Equity:** ~$1,024,384 | **V2 Equity:** ~$989,589
+**Date:** May 15, 2026 | **V1 Equity:** $1,027,097 | **True Total P&L:** +$27,487
 
 ---
 
-## 🎯 PROJECT GOAL
-Two autonomous AI-powered paper trading agents on Alpaca scanning a watchlist every 1-2 minutes, scoring signals using 13 strategies, executing buy/sell decisions with full risk management, and autonomously reconfiguring themselves via Claude AI — running 24/7 with a React dashboard.
+## PROJECT GOAL
+Build an autonomous AI-powered paper trading agent on Alpaca that scans a watchlist every 2 minutes, scores signals using 13 strategies, and executes buy/sell decisions with full risk management — running 24/7 with a React dashboard and React Native mobile app.
 
 ---
 
-## 🏗️ ARCHITECTURE
+## CURRENT STATE (May 15, 2026)
+
+### V1 — Profit Maximizer — RUNNING (STABLE — DO NOT MODIFY)
+- Equity: $1,027,097 (+$27,487 from $1M start)
+- Keys: PKUPVN2TBTLKAUHOQLIMWGK4BM / 3Y1FwQmVvL7uzWkFELzUGJeXJZ5a8qoboFcWPD1mcn1Q
+- Stop / TP: 1.0% / 3.0%
+- Min conviction: 2.0 (adaptive)
+- Scan interval: 2 min
+- Max positions: 6
+- Win rate: 64.2% over 95 trades
+- Ports: 3000 (frontend) / 8000 (backend)
+- Status: All fixes deployed, running stable
+
+### V2 — Experiment Agent — READY TO START
+- Fresh copy of V1 codebase
+- Keys: PKP3WTGVDUYTDCYW5VDW3Z3CMZ / HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm
+- Starting equity: ~$997,547
+- Ports: 3001 (frontend) / 8001 (backend)
+- Purpose: Test new candle strategies before promoting to V1
+- Enhanced: Pin Bar, Harami, Harami Cross, Gravestone Doji, Dragonfly Doji, Inverted Hammer
+
+### Mobile App
+- Framework: React Native + Expo (SDK 54)
+- Connection: Cloudflare Tunnel → port 8000
+- Start tunnel: `cloudflared tunnel --url http://localhost:8000`
+- Update URL in: `trading-agent-mobile/context/AppContext.js` → apiBase
+- Permanent URL deferred until iOS App Store submission
+
+---
+
+## ARCHITECTURE
 
 ```
-Alpaca API (paper)
-     │
-     ├── data_layer/providers/alpaca_provider.py   ← fetches 15-min + 1-min OHLCV bars
-     │
-     ├── indicators/engine.py                       ← RSI, MACD, MA, ATR, Volume
-     │
-     ├── strategies/engine.py                       ← 13 strategies → StrategyReport + conviction score
-     │   ├── momentum.py, breakout.py, micro_momentum.py ...
-     │
-     ├── decision_engine/
-     │   ├── trading_agent.py                       ← main scan loop, buy/sell execution
-     │   ├── engine.py                              ← conviction scoring, MTF, position sizing
-     │   ├── agent_config.py                        ← apply_profit_maximizer() / apply_micro_momentum()
-     │   ├── market_scheduler.py                    ← startup/intraday/EOD scans, cooldowns
-     │   ├── risk_guardian.py                       ← position limits, daily loss limits
-     │   ├── position_sizer.py                      ← Kelly criterion sizing
-     │   ├── ai_configurator.py                     ← NEW: autonomous AI self-configuration
-     │   ├── ticker_universe.py                     ← NEW: 60+ ticker scoring across 6 domains
-     │   └── config_log.py                          ← NEW: append-only AI decision audit log
-     │
-     ├── execution/
-     │   ├── alpaca_executor.py                     ← place orders, sync positions, duplicate guard
-     │   │                                             + stale position import guard (>5% drift)
-     │   └── portfolio_tracker.py                   ← ClosedTrade objects, P&L stats
-     │
-     └── dashboard/
-         ├── backend/api.py                         ← FastAPI + AI config endpoints
-         └── frontend/src/App.jsx                   ← React dashboard
+trading_system/
+├── trading_agent/          ← V1 STABLE (ports 3000/8000)
+├── trading_agent_v2/       ← V2 EXPERIMENT (ports 3001/8001)
+└── trading-agent-mobile/   ← React Native mobile app
 ```
 
-**Two independent agents:**
-- `trading_agent/` → V1 Profit Maximizer, ports 8000/3000
-- `trading_agent_v2/` → V2 Micro Momentum, ports 8001/3001
+V2 differs from V1 only in:
+- Alpaca keys (.env)
+- Ports (run_dashboard.sh)
+- Enhanced candle strategies (strategies/candle_reversal.py + indicators/candlestick.py)
+- Fresh portfolio.json (starting $997,547)
 
 ---
 
-## 📊 CURRENT STATE (May 22, 2026)
+## ALL FIXES (May 13-15)
 
-### V1 — Profit Maximizer ✅ WORKING
-| Field | Value |
+### Fix 23: AIReviewer Credits + Model String
+- Credits ran out ~May 8 — every BUY auto-approved for 5 days
+- Model: claude-sonnet-4-20250514 → claude-sonnet-4-6
+- Impact: win rate dropped 82% → 55% while offline
+
+### Fix 24: AIReviewerBadge Dashboard Component
+- File: dashboard/frontend/src/components/AIReviewerBadge.jsx
+- Green pulsing dot when active, red when credits exhausted
+- Direct link to console.anthropic.com/billing
+
+### Fix 25: AIReviewer Status Tracking
+- Tracks: status, calls_succeeded, calls_failed, last_error
+- Detects credit exhaustion specifically
+
+### Fix 26: AIReviewer Momentum Prompt Fix
+- Was vetoing RSI > 70 — blocking good momentum trades
+- Updated: high RSI acceptable for momentum strategy
+
+### Fix 27: Trail Activation (FLAG-5)
+- Stop doesn't trail until +0.5% gain from entry
+- Eliminates same-minute stop-outs from noise
+
+### Fix 28: Max Positions 10 → 6
+- Quality over quantity
+
+### Fix 29: AI Confidence-Based Position Sizing
+- ≥85% → 100% Kelly, 75-84% → 75%, 65-74% → 50%, 60-64% → 35%
+
+### Fix 30: Self-Healing historical_pnl_offset
+- On every restart: pulls Alpaca equity, recalculates offset if gap > $50
+
+### Fix 31: Scan Interval Sync Fix
+- scan_frequency_minutes now also sets intraday_interval_min + intraday_mode=True
+
+### Fix 32: Session Ban 3 → 2 Losses
+- Symbol banned for rest of session after 2 losses (was 3)
+
+### Fix 33-35: Chart + Display Fixes
+- Equity chart line always green
+- 1D labels show date + time
+- Trade dot filter uses 24h buffer
+- toLocaleString("en-US") globally
+
+### Fix 36: Ticker Loss Persistence
+- File: decision_engine/discipline.py
+- Saves to logs/ticker_cd.json on every loss/win
+- Loads on startup — session ban survives restarts
+
+### Fix 37: Alpaca Startup Sync (_sync_today_from_alpaca)
+- File: decision_engine/trading_agent.py
+- Called on every startup after executor connects
+- Injects missing trades + rebuilds ticker loss counts
+- Fixes: calendar-based day P&L, session ban after restart
+
+### Fix 38: Dashboard "Trades" Label + Date Visibility
+- "Today's trades" → "Trades"
+- Date fontSize 8 → 11, fontWeight 500
+
+### V2 Experiment Setup (May 15)
+- Wiped old V2 (Micro Momentum with phantom losses)
+- Copied V1 entirely into trading_agent_v2/
+- Enhanced candle strategies in V2 only
+
+---
+
+## V2 CANDLE STRATEGY ENHANCEMENTS
+
+### New patterns in V2 (not in V1)
+| Pattern | Win Rate | Detection |
+|---|---|---|
+| Pin Bar Bullish/Bearish | 68% | Wick ≥ 2x body |
+| Harami | 65% | 2nd candle inside 1st |
+| Harami Cross | 72.85% | Harami + doji 2nd |
+| Gravestone Doji | 57% | Long upper wick |
+| Dragonfly Doji | 55% | Long lower wick |
+| Inverted Hammer | 60% | Entry signal (was exit-only) |
+
+### Files modified in V2 only
+- `trading_agent_v2/indicators/candlestick.py` — 13 patterns (V1 has 8)
+- `trading_agent_v2/strategies/candle_reversal.py` — all 13 patterns
+
+### Experiment hypothesis
+V2 win rate > V1 win rate after 2 weeks → promote candle strategies to V1
+
+---
+
+## OPEN TASKS (priority order)
+
+### IMMEDIATE
+1. Start V2 and verify it connects to correct Alpaca account
+2. Run V1 and V2 side by side for 2 weeks
+3. Compare win rates
+
+### SHORT TERM
+4. EOD auto-recovery scan — auto-inject Alpaca EOD batch closes
+5. force_scan() EOD scan type bug — pass "INTRADAY" explicitly
+6. PDT cleanup — FINRA abolished PDT June 4, 2026
+
+### FUTURE
+7. More V2 candle patterns: Three Outside Up/Down, Marubozu, Tweezer
+8. Strategy backtester — 3-5 years historical data
+9. IBKR live integration
+10. Binance crypto integration
+11. ML strategy weight optimizer
+12. iOS App Store submission
+
+---
+
+## KNOWN ISSUES
+
+| Issue | Status |
 |---|---|
-| Equity | ~$1,024,384 (+$24k from $1M start) |
-| Keys | PKUPVN2TBTLKAUHOQLIMWGK4BM / 3Y1FwQmVvL7uzWkFELzUGJeXJZ5a8qoboFcWPD1mcn1Q |
-| Stop / TP | 1.0% / 3.0% |
-| Min conviction | 2.0 (adaptive) |
-| Scan interval | 2 min |
-| Max positions | 5 |
-| Status | Running, stable |
-
-### V2 — Micro Momentum ⚠️ NEEDS FIXES
-| Field | Value |
-|---|---|
-| Equity | ~$989,589 (down ~$10k from $1M) |
-| Keys | PKP3WTGVDUYTDCYW5VDW3Z3CMZ / HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm |
-| Stop / TP | 0.40% / 0.80% |
-| Min conviction | 1.5 (AI keeps raising to 2.5 — needs fix) |
-| Scan interval | 1 min |
-| Max positions | 8 |
-| Max trades/symbol | 3 per day |
-| Status | Running but churning — see open bugs below |
+| EOD batch closes not auto-recorded | Workaround: self-healing offset corrects P&L |
+| force_scan triggers EOD type | Open — cosmetic |
+| Cloudflare tunnel URL changes on restart | Update AppContext.js apiBase |
+| Position display 0 for ~3 cycles after restart | Resolves itself |
 
 ---
 
-## ✅ NEW FEATURES BUILT (May 8–22, 2026)
+## KEY DECISIONS (finalized)
 
-### AI Self-Configuration System (V2 only)
-**Files:** `decision_engine/ai_configurator.py`, `decision_engine/config_log.py`
-
-- Claude autonomously decides expand/defend/hold every scan cycle
-- Reads: win_rate, day_pnl, regime, SPY RSI, VIX, streak scores
-- Changes: stop_loss, take_profit, conviction, max_positions, scan_interval, watchlist
-- Hard bounds on all params — Claude cannot exceed them
-- 30-min cooldown between reconfigs, emergency override on -2.5% drawdown
-- Full audit log at `logs/ai_config_log.jsonl` — every decision with before/after
-- Non-blocking API: `/api/ai_config/latest`, `/api/ai_config/history`
-- Revert endpoint: `POST /api/ai_config/revert/{entry_id}`
-
-**Key issue:** Claude reads portfolio.json for performance data. When portfolio.json has phantom/corrupted trades, Claude makes wrong decisions (phantom -$2M losses → 14 DEFEND decisions in a row).
-
-### Ticker Universe (V2 only)
-**File:** `decision_engine/ticker_universe.py`
-
-- 68 tickers across 6 domains: tech, finance, energy, biotech, macro, leveraged ETFs
-- Scores each ticker: momentum (40%) + volume surge (25%) + win streak (20%) + regime alignment (15%)
-- Claude reads top 20 by score and picks the active watchlist dynamically
-- Refresh endpoint: `POST /api/universe/refresh`
-- Watchlist refresh: `POST /api/universe/watchlist_refresh`
-
-**Key issue:** `_data_manager` is None when TickerUniverse is initialized in `__init__()` because DataManager connects in `start()`. Fix deployed (line ~355 in trading_agent.py wires it after connect) but needs verification.
-
-### AIReviewer (V2)
-**File:** `decision_engine/ai_reviewer.py`
-
-- Reviews each individual BUY/SELL before execution
-- Currently set to pass-through mode (auto-approves) — was fighting AIConfigurator
-- Model: `claude-sonnet-4-6` ✅ correct
-- TODO: re-enable with session context from AIConfigurator so they coordinate
-
-### Pre-market AI Brief
-- `PREMARKET_GAP_SCAN` fires at 8:30 AM ET (5:30 AM PST)
-- Triggers universe refresh + AI evaluation before market open
-- News sentiment (NewsFetcher) and earnings calendar wired — only fires at premarket
-
-### Stale Position Import Guard
-**File:** `execution/alpaca_executor.py`
-
-- Skips importing Alpaca positions where entry price differs >5% from current price
-- Prevents phantom stop-outs from old positions (TSLA bought at $407, current $297 → skipped)
-- Critical fix — without this, every restart imported old positions and triggered fake -29% losses
-
-### Minimum Hold Time (60 seconds)
-**File:** `decision_engine/trailing_stop.py`
-
-- Stop cannot fire within first 60 seconds of entry
-- Prevents META/COIN style immediate stop-outs on volatile fills
-
-### Churn Prevention
-**File:** `decision_engine/trading_agent.py`
-
-- `_symbol_trade_count` — tracks trades per symbol per day
-- `_symbol_loss_count` — tracks consecutive losses per symbol per day
-- Max 3 trades per symbol per day (configurable via `max_trades_per_symbol`)
-- After 2 consecutive losses on same ticker → full day block
-- **BUG:** Counters NOT initialized in `__init__()` — only in daily reset code
-- This means counters are always 0 on startup → guard never fires → churn continues
+1. V1 is STABLE — never experiment on V1 directly
+2. V2 is the experiment sandbox — promote to V1 after 2 weeks outperformance
+3. Trail activation ON — stop only trails after +0.5% gain
+4. Max positions 6 — quality over quantity
+5. Session ban after 2 losses on same symbol
+6. AI confidence scales position size
+7. AIReviewer prompt: high RSI OK for momentum strategy
+8. Alpaca sync on every startup — rebuilds loss counts + injects missing trades
+9. Ticker loss counts persist to logs/ticker_cd.json
+10. historical_pnl_offset auto-heals against Alpaca on every restart
+11. Mobile app permanent URL deferred until iOS App Store submission
 
 ---
 
-## 🚨 OPEN BUGS (fix before next trading day)
-
-### CRITICAL — Fix immediately
-
-**Bug 1: Churn prevention counters not initialized in `__init__()`**
-```python
-# trading_agent.py — in __init__() at self._cycle_count = 0, ADD:
-self._symbol_trade_count: dict = {}   # trades per symbol today
-self._symbol_loss_count:  dict = {}   # consecutive losses per symbol today
-```
-Without this, getattr(self, '_symbol_trade_count', {}) returns a NEW empty dict every call.
-The guard at line ~1576 always sees count=0 and never blocks.
-META and MSFT each traded 6 times today despite max_trades_per_symbol=3.
-
-**Bug 2: AI reads corrupted portfolio.json → makes wrong defend decisions**
-The portfolio tracker accumulates phantom trades from restarts. Claude reads avg_loss=$17,816
-from fake data and DEFEND-loops. Need to either:
-- Auto-sync portfolio.json from Alpaca on startup (preferred)
-- Add a portfolio validity check before feeding to AIConfigurator
-
-**Bug 3: Universe data_manager wiring — needs verification**
-After fix, universe should score 68 tickers at market open.
-Currently shows "Scored: 0 tickers | refreshed: None" — wiring may not be taking effect.
-Check: after restart, run `curl -s -X POST http://localhost:8001/api/universe/refresh`
-If it scores 0, the data_manager is still None when refresh runs.
-
-**Bug 4: AI keeps raising conviction to 2.5**
-Claude sees 0% win rate (from phantom data) and raises conviction.
-Fix Bug 2 first — clean data will give Claude correct win rate → stops over-defending.
-Also add conviction floor: never let AI set conviction > 2.0 for Micro Momentum.
-
-### MEDIUM
-
-**Bug 5: Portfolio.json accumulates phantom trades across restarts**
-Every restart, the portfolio tracker's `sync_eod_from_alpaca()` may reimport old trades.
-Need to add a session boundary — only sync trades from current day.
-
-**Bug 6: AI watchlist too small after defend**
-Claude trims to 5 tickers when defending. With only 5 tickers and conviction 2.5,
-no trades fire for hours. Add minimum watchlist size (8 tickers) even in defend mode.
-
----
-
-## ✅ FIXES FROM ORIGINAL HANDOFF (all deployed)
-
-All 14 original fixes (Fix 1–14) from May 8 handoff are deployed to V1 and V2:
-- Duplicate buy guard ✅
-- Full position sync every cycle ✅
-- Import missing Alpaca positions ✅ (+ stale guard added)
-- Stop-out cooldown enforced ✅
-- Loss-only re-entry cooldown 60min ✅
-- MICRO_MOMENTUM enum ✅
-- _is_micro enum check ✅
-- Momentum strategy price= removed ✅
-- BarSet KeyError fix ✅
-- SIGALRM removed ✅
-- get_open_positions() property fix ✅
-- V2 saved_config.json corrected ✅
-- V2 all 13 strategies active (MODE_ROLES expanded) ✅
-- MicroMomentum thresholds lowered ✅
-
----
-
-## 📈 PERFORMANCE HISTORY
-
-| Date | Agent | Day P&L | Notes | Equity |
-|---|---|---|---|---|
-| Apr 28 | V1 | +$739 | 3 trades, 100% win | $1,001,010 |
-| May 1 | V1 | +$237 | Duplicate buy bug, PDT flagged | $1,005,617 |
-| May 4 | V1 | +$13,026 | 82% win rate 🔥 | $1,020,217 |
-| May 5 | V1 | +$355 | 23 trades, B+ | $1,005,053 |
-| May 6 | V1 | +$4,785 | Cooldown bug blocked AM | $1,030,632 |
-| May 7 | V1 | $0 | is_stopped_out wrong name | $1,031,060 |
-| May 8–16 | V1 | mixed | Stable, running | ~$1,024,384 |
-| May 18 | V2 | -$414 | Phantom imports + MSFT churn | $997,133 |
-| May 19 | V2 | +$158 | AAPL +$186, META -$28 | $997,308 |
-| May 20 | V2 | -$837 | COIN/MSFT churn (10 trades each) | $990,095 |
-| May 21 | V2 | -$10 | AI over-defending, few trades | $990,078 |
-| May 22 | V2 | -$489 | META/MSFT churn (6 each), churn guard not firing | $989,589 |
-
----
-
-## 🔧 CORRECT V2 CONFIG (saved_config.json)
-
-```json
-{
-  "approach": "Micro Momentum",
-  "stop_loss_pct": 0.004,
-  "take_profit_pct": 0.008,
-  "min_conviction_score": 1.5,
-  "min_strategies_agree": 1,
-  "max_open_positions": 8,
-  "max_trades_per_symbol": 3,
-  "intraday_mode": true,
-  "intraday_interval_min": 1,
-  "scan_interval_minutes": 1,
-  "trading_timeframe": "15Min",
-  "min_risk_reward": 2.0,
-  "paper_trading": true,
-  "market_hours_only": true
-}
-```
-
----
-
-## 🚀 LAUNCH COMMANDS
+## LAUNCH COMMANDS
 
 ```bash
-# V1
+# V1 (stable)
 lsof -ti:8000,3000 | xargs kill -9 2>/dev/null
-cd ~/Desktop/trading_system/trading_agent && bash run_dashboard.sh
+cd ~/Desktop/trading_system/trading_agent && bash run_dashboard.sh 2>&1 | tee /tmp/agent_log.txt
 
-# V2
+# V2 (experiment)
 lsof -ti:8001,3001 | xargs kill -9 2>/dev/null
-cd ~/Desktop/trading_system/trading_agent_v2 && bash run_dashboard.sh
+cd ~/Desktop/trading_system/trading_agent_v2 && bash run_dashboard.sh 2>&1 | tee /tmp/v2_log.txt
 
-# Emergency close all V1 positions
+# Mobile tunnel
+cloudflared tunnel --url http://localhost:8000
+# Then update AppContext.js apiBase with new URL
+cd ~/Desktop/trading_system/trading-agent-mobile && npx expo start --lan
+
+# Emergency close V1
 curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
   -H 'APCA-API-KEY-ID: PKUPVN2TBTLKAUHOQLIMWGK4BM' \
   -H 'APCA-API-SECRET-KEY: 3Y1FwQmVvL7uzWkFELzUGJeXJZ5a8qoboFcWPD1mcn1Q'
 
-# Emergency close all V2 positions
+# Emergency close V2
 curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
   -H 'APCA-API-KEY-ID: PKP3WTGVDUYTDCYW5VDW3Z3CMZ' \
   -H 'APCA-API-SECRET-KEY: HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm'
 
-# Check both agents
-bash ~/Downloads/quick_check.sh
-
-# V2 full health check
-bash ~/Downloads/v2_health_check.sh
+# Backup
+~/Desktop/trading_system/backup.sh
 ```
 
 ---
 
-## 🩺 AI CONFIG API ENDPOINTS (V2 only)
+## HEALTH CHECK
 
 ```bash
-# Latest AI decision (instant, never blocks)
-curl -s http://localhost:8001/api/ai_config/latest | python3 -m json.tool
+# Both agents
+for port in 8000 8001; do
+  name="V1" && [ $port -eq 8001 ] && name="V2"
+  curl -s http://localhost:$port/api/state | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+perf=d.get('performance',{})
+rep=d.get('reporting',{})
+print(f'$name: {d.get(\"agent_status\")} | equity=\${d.get(\"account\",{}).get(\"portfolio_value\",0):,.0f} | pnl=\${perf.get(\"total_pnl\",0):+,.0f} | wr={perf.get(\"win_rate\",0)*100:.0f}% | day=\${rep.get(\"day_pnl\",0):+,.0f}')
+" 2>/dev/null || echo "$name: DOWN"
+done
 
-# Full decision history
-curl -s http://localhost:8001/api/ai_config/history | python3 -m json.tool
-
-# Trigger force evaluation (sets flag, fires next scan cycle)
-curl -s -X POST http://localhost:8001/api/ai_config/evaluate | python3 -m json.tool
-
-# Universe scores
-curl -s http://localhost:8001/api/universe/scores | python3 -m json.tool
-
-# Force universe refresh
-curl -s -X POST http://localhost:8001/api/universe/refresh | python3 -m json.tool
-
-# Force Claude to pick new watchlist
-curl -s -X POST http://localhost:8001/api/universe/watchlist_refresh | python3 -m json.tool
-
-# Revert to config before entry_id
-curl -s -X POST http://localhost:8001/api/ai_config/revert/{entry_id} | python3 -m json.tool
+# Alpaca ground truth
+python3 -c "
+import urllib.request,json
+for name,k,s in [
+    ('V1','PKUPVN2TBTLKAUHOQLIMWGK4BM','3Y1FwQmVvL7uzWkFELzUGJeXJZ5a8qoboFcWPD1mcn1Q'),
+    ('V2','PKP3WTGVDUYTDCYW5VDW3Z3CMZ','HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm'),
+]:
+    req=urllib.request.Request('https://paper-api.alpaca.markets/v2/account',
+        headers={'APCA-API-KEY-ID':k,'APCA-API-SECRET-KEY':s})
+    a=json.loads(urllib.request.urlopen(req,timeout=8).read())
+    print(f'{name}: \${float(a[\"equity\"]):,.2f} (P&L: \${float(a[\"equity\"])-1000000:+,.2f})')
+"
 ```
 
 ---
 
-## ⚠️ KEY LESSONS LEARNED (May 8–22)
+## PERFORMANCE HISTORY
 
-1. **portfolio.json is the single source of truth for AI decisions** — if it has phantom data, Claude makes wrong decisions. Always verify against Alpaca before trusting dashboard P&L.
-2. **Churn = tight stop + 30min cooldown + re-entry** — when a ticker moves against, 0.4% stop fires, 30min passes, agent re-buys, repeat. Fix: max_trades_per_symbol + consecutive loss block.
-3. **Stale Alpaca positions cause phantom stop-outs** — positions from previous weeks get imported on restart with old entry prices, immediately stop out showing -29% losses. Stale guard (>5% drift) prevents this.
-4. **AIReviewer and AIConfigurator fight each other** — AIConfigurator says EXPAND, AIReviewer says VETO. They need session context sharing. AIReviewer currently in pass-through mode.
-5. **Universe scoring needs data_manager** — TickerUniverse initialized before DataManager connects. Wire data_manager into universe after connect() in start().
-6. **Claude's DEFEND loop** — once Claude sees consecutive losses (even phantom), it raises conviction → fewer signals → fewer trades → losses continue → more defend. Break the loop with clean portfolio data.
-7. **ast.parse() every file before restart** — syntax errors killed multiple trading days.
-8. **MODE_ROLES must include NEUTRAL+TREND for Micro Momentum** — INTRADAY only = 3 strategies = conviction always 0.
-
----
-
-## 📁 NEW FILES ADDED (May 8–22)
-
-```
-trading_agent_v2/
-├── decision_engine/
-│   ├── ai_configurator.py     ← autonomous config engine
-│   ├── ticker_universe.py     ← 68-ticker scoring system
-│   └── config_log.py          ← append-only AI decision log
-└── logs/
-    └── ai_config_log.jsonl    ← AI decision history
-```
+| Date | Day P&L | Win Rate | Notes | Equity |
+|---|---|---|---|---|
+| Apr 28 | +$739 | 100% | 3 trades | $1,001,010 |
+| May 1 | +$237 | 100% | PDT flagged | $1,005,617 |
+| May 4 | +$13,026 | 82% | Peak day | $1,020,217 |
+| May 5 | +$355 | 82% | 23 trades | $1,005,053 |
+| May 6 | +$4,785 | 75% | Cooldown bug | $1,030,632 |
+| May 7 | $0 | — | is_stopped_out bug | $1,031,060 |
+| May 12 | +$3,881 | 75% | Dashboard overhaul | $1,030,574 |
+| May 13 | -$3,882 | 43% | RKLB/MARA losses | $1,026,688 |
+| May 14 | +$1,314 | 86% | All fixes live | $1,028,000 |
+| May 15 | -$844 | 50% | RKLB/MARA/AMD | $1,027,097 |
 
 ---
 
-## 🔑 KEY DECISIONS (finalized — don't revisit)
+## GIT + BACKUP
 
-1. **Fully autonomous AI** — no human approval, Claude decides everything about config
-2. **Hard bounds** — PARAM_BOUNDS in ai_configurator.py, Claude cannot exceed them
-3. **Non-blocking evaluate()** — lock.acquire(blocking=force, timeout) prevents API hang
-4. **Stale import guard** — >5% price drift = skip import, prevents phantom stop-outs
-5. **60s minimum hold** — stops cannot fire within first 60 seconds of entry
-6. **Pass-through AIReviewer** — disabled until coordinated with AIConfigurator
-7. **Portfolio.json = AI's brain** — keep it clean and synced with Alpaca reality
-8. **Loss-only cooldown** — wins re-enter freely, only losses blocked for 60min
+- Repo: github.com/venuspatel/trading_system (public)
+- Auto-backup: cron at 11 PM via backup.sh
+- Manual: ~/Desktop/trading_system/backup.sh
+- GitHub token: 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
 
 ---
 
-*TradeAgent Project Handoff | May 22, 2026 | Confidential*
+*TradeAgent Project Handoff | May 15, 2026 | Confidential*
