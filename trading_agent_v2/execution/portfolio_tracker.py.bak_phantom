@@ -598,12 +598,7 @@ class PortfolioTracker:
         Fetch today's Alpaca closed orders and inject any missing
         ClosedTrade records into portfolio.json.
         Called once on every startup, after set_alpaca_credentials().
-        Safe to call multiple times — deduplicates on order_id.
-
-        FIX: uses UTC midnight (not ET-date + Z) so we don't pull
-        previous-session orders. Dedup on order_id prevents duplicates.
-        Does NOT use alpaca_positions as entry fallback (causes phantoms).
-        USE_UTC_MIDNIGHT
+        Safe to call multiple times — skips already-recorded exits.
         """
         if not self._alpaca_key or not self._alpaca_secret:
             return
@@ -612,15 +607,9 @@ class PortfolioTracker:
             import json as _json
             from datetime import datetime, timezone, timedelta
 
-            # Use UTC midnight today — NOT ET date + Z (that pulls prev session)
-            UTC   = timezone.utc
             ET    = timezone(timedelta(hours=-4))
-            now_utc   = datetime.now(UTC)
-            midnight_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-            after_str = midnight_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-            today_et  = datetime.now(ET).strftime("%Y-%m-%d")
-
-            base = (
+            today = datetime.now(ET).strftime("%Y-%m-%d")
+            base  = (
                 "https://paper-api.alpaca.markets"
                 if getattr(self, "_alpaca_paper", True)
                 else "https://api.alpaca.markets"
@@ -629,11 +618,10 @@ class PortfolioTracker:
                 "APCA-API-KEY-ID":     self._alpaca_key,
                 "APCA-API-SECRET-KEY": self._alpaca_secret,
             }
-            url = (f"{base}/v2/orders"
-                   f"?status=closed&after={after_str}&limit=200&direction=asc")
+            url    = (f"{base}/v2/orders"
+                      f"?status=closed&after={today}T00:00:00Z&limit=200&direction=asc")
             req    = _ur.Request(url, headers=headers)
             orders = _json.loads(_ur.urlopen(req, timeout=10).read())
-
             sell_fills = [
                 o for o in orders
                 if (str(o.get("side", "")).lower() == "sell"
@@ -641,23 +629,13 @@ class PortfolioTracker:
                     and o.get("filled_avg_price"))
             ]
             if not sell_fills:
-                logger.info("[Portfolio] EOD recovery: no sell fills since UTC midnight")
+                logger.info("[Portfolio] EOD recovery: no sell fills found today")
                 return
-
-            # Dedup on order_id — more reliable than (symbol, date)
-            existing_ids = {
-                getattr(t, "order_id", None)
-                for t in self._trades
-                if getattr(t, "order_id", None)
-            }
-            # Also keep (symbol, date) fallback for trades without order_id
-            existing_sym_date = set()
+            existing = set()
             for t in self._trades:
                 et = self._trade_exit_et(t)
                 if et:
-                    existing_sym_date.add((t.symbol.upper(), et.strftime("%Y-%m-%d")))
-
-            # Build buy fills map from same UTC-midnight window
+                    existing.add((t.symbol.upper(), et.strftime("%Y-%m-%d")))
             buy_fills = {
                 str(o.get("symbol", "")).upper(): o
                 for o in orders
@@ -665,19 +643,20 @@ class PortfolioTracker:
                     and str(o.get("status", "")).lower() == "filled"
                     and o.get("filled_avg_price"))
             }
-
+            try:
+                pos_req = _ur.Request(f"{base}/v2/positions", headers=headers)
+                alpaca_positions = {
+                    p["symbol"]: float(p["avg_entry_price"])
+                    for p in _json.loads(_ur.urlopen(pos_req, timeout=8).read())
+                }
+            except Exception:
+                alpaca_positions = {}
             injected = 0
             for o in sell_fills:
-                sym      = str(o.get("symbol", "")).upper()
-                order_id = str(o.get("id", ""))
+                sym       = str(o.get("symbol", "")).upper()
                 filled_at = str(o.get("filled_at", "") or o.get("updated_at", ""))
                 if not filled_at:
                     continue
-
-                # Skip if already recorded by order_id
-                if order_id and order_id in existing_ids:
-                    continue
-
                 try:
                     filled_dt   = datetime.fromisoformat(
                         filled_at.replace("Z", "+00:00")
@@ -685,46 +664,26 @@ class PortfolioTracker:
                     filled_date = filled_dt.strftime("%Y-%m-%d")
                 except Exception:
                     continue
-
-                # Skip if already recorded by (symbol, date) fallback
-                if (sym, filled_date) in existing_sym_date:
+                if (sym, filled_date) in existing:
                     continue
-
                 exit_price = float(o.get("filled_avg_price", 0))
                 qty        = int(float(o.get("filled_qty", o.get("qty", 0))))
                 if exit_price <= 0 or qty <= 0:
                     continue
-
-                # Entry price MUST come from a same-session buy order.
-                # Do NOT fall back to alpaca_positions (old session entry prices
-                # cause phantom losses like AVGO $418 entry vs $280 exit = -33%).
                 entry_price = 0.0
                 if sym in buy_fills:
                     entry_price = float(buy_fills[sym].get("filled_avg_price", 0))
+                elif sym in alpaca_positions:
+                    entry_price = alpaca_positions[sym]
                 if entry_price <= 0:
-                    logger.info(
-                        f"[Portfolio] EOD recovery: {sym} — "
-                        f"no same-session buy order found, skipping"
-                    )
+                    logger.info(f"[Portfolio] EOD recovery: {sym} — no entry price, skipping")
                     continue
-
-                # Sanity check: skip if price drift > 15% (impossible intraday for stop/TP)
-                drift = abs(exit_price - entry_price) / entry_price if entry_price else 0
-                if drift > 0.03:  # V2 stop=0.4% TP=0.8%, nothing legit exceeds 3%
-                    logger.warning(
-                        f"[Portfolio] EOD recovery: {sym} SKIPPED — "
-                        f"drift {drift:.1%} too large (entry=${entry_price:.2f} "
-                        f"exit=${exit_price:.2f}), likely stale order"
-                    )
-                    continue
-
                 pnl     = round((exit_price - entry_price) * qty, 2)
                 pnl_pct = round((exit_price - entry_price) / entry_price, 4)
                 order_type = str(o.get("type", "")).lower()
-                if "stop"  in order_type: exit_reason = "Stop loss (recovered)"
+                if "stop" in order_type:   exit_reason = "Stop loss (recovered)"
                 elif "limit" in order_type: exit_reason = "Take profit (recovered)"
                 else:                       exit_reason = "Alpaca EOD close (recovered)"
-
                 entry_time = (
                     str(buy_fills[sym].get("filled_at", filled_at))
                     if sym in buy_fills else filled_at
@@ -736,20 +695,20 @@ class PortfolioTracker:
                     strategy="recovered", approach="",
                 )
                 self._trades.append(trade)
-                existing_ids.add(order_id)
-                existing_sym_date.add((sym, filled_date))
+                existing.add((sym, filled_date))
                 injected += 1
                 logger.info(
                     f"[Portfolio] EOD recovery: injected {sym} "
-                    f"pnl=${pnl:+.2f} order_id={order_id}"
+                    f"{'+'if pnl>=0 else ''}${pnl:.2f} ({exit_reason})"
                 )
-
-            if injected:
+            if injected > 0:
+                self._rebuild_synthetic_curve()
                 self._save()
-                logger.info(f"[Portfolio] EOD recovery: {injected} trade(s) injected")
-
-        except Exception as exc:
-            logger.warning(f"[Portfolio] sync_eod_from_alpaca failed: {exc}")
+                logger.info(f"[Portfolio] EOD recovery complete — {injected} trade(s) injected")
+            else:
+                logger.info("[Portfolio] EOD recovery: all trades already recorded")
+        except Exception as e:
+            logger.warning(f"[Portfolio] EOD recovery failed: {e}")
 
 
     def _load(self):

@@ -1,6 +1,6 @@
 {
   "starting_value": 1000000.0,
-  "historical_pnl_offset": -10045.789999999957,
+  "historical_pnl_offset": -10101.580000000038,
   "peak_value": 1000000.0,
   "day_date": "2026-05-22",
   "day_start_pnl": 0.0,
@@ -32,6 +32,58 @@
       "approach": ""
     },
     {
+      "symbol": "AAPL",
+      "entry_price": 311.0938,
+      "exit_price": 311.02,
+      "qty": 410,
+      "entry_time": "2026-05-22T15:16:11.005509Z",
+      "exit_time": "2026-05-22T15:17:15.80562582Z",
+      "pnl": -30.26,
+      "pnl_pct": -0.0002,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "MSFT",
+      "entry_price": 418.74,
+      "exit_price": 418.4368,
+      "qty": 447,
+      "entry_time": "2026-05-22T14:15:27.562387Z",
+      "exit_time": "2026-05-22T14:21:05.684653Z",
+      "pnl": -135.53,
+      "pnl_pct": -0.0007,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "META",
+      "entry_price": 608.0767,
+      "exit_price": 607.8413,
+      "qty": 330,
+      "entry_time": "2026-05-22T14:15:28.692692Z",
+      "exit_time": "2026-05-22T14:21:07.148739Z",
+      "pnl": -77.68,
+      "pnl_pct": -0.0004,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "GOOGL",
+      "entry_price": 385.38,
+      "exit_price": 385.5024,
+      "qty": 372,
+      "entry_time": "2026-05-22T14:15:26.358444Z",
+      "exit_time": "2026-05-22T14:16:36.604951Z",
+      "pnl": 45.53,
+      "pnl_pct": 0.0003,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
       "symbol": "AVGO",
       "entry_price": 418.44,
       "exit_price": 417.19,
@@ -40,100 +92,48 @@
       "exit_time": "2026-05-22T13:46:58.758851Z",
       "pnl": -291.25,
       "pnl_pct": -0.003,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
     },
     {
-      "symbol": "GOOGL",
-      "entry_price": 385.983208,
-      "exit_price": 385.502393,
-      "qty": 372,
-      "entry_time": "2026-05-22T17:28:24.209222Z",
-      "exit_time": "2026-05-22T14:16:36.604951Z",
-      "pnl": -178.86,
-      "pnl_pct": -0.0012,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
-    },
-    {
-      "symbol": "META",
-      "entry_price": 608.26,
-      "exit_price": 607.63,
-      "qty": 110,
-      "entry_time": "2026-05-22T14:19:56.572695Z",
-      "exit_time": "2026-05-22T14:16:33.279018Z",
-      "pnl": -69.3,
-      "pnl_pct": -0.001,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
-    },
-    {
-      "symbol": "MSFT",
-      "entry_price": 417.99,
-      "exit_price": 419.090403,
-      "qty": 149,
-      "entry_time": "2026-05-22T14:19:56.298631Z",
-      "exit_time": "2026-05-22T14:16:36.203025Z",
-      "pnl": 163.96,
-      "pnl_pct": 0.0026,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
-    },
-    {
-      "symbol": "AAPL",
-      "entry_price": 311.093805,
-      "exit_price": 311.02,
-      "qty": 410,
-      "entry_time": "2026-05-22T15:16:11.005509Z",
-      "exit_time": "2026-05-22T15:17:15.805626Z",
-      "pnl": -30.26,
-      "pnl_pct": -0.0002,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
-    },
-    {
-      "symbol": "SOFI",
-      "entry_price": 15.67,
-      "exit_price": 15.63,
-      "qty": 4412,
-      "entry_time": "2026-05-22T17:21:10.100507Z",
-      "exit_time": "2026-05-22T17:17:19.258141Z",
-      "pnl": -176.48,
-      "pnl_pct": -0.0026,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
-    },
-    {
-      "symbol": "AMZN",
-      "entry_price": 268.76,
-      "exit_price": 267.71,
-      "qty": 346,
-      "entry_time": "2026-05-22T17:40:31.80919Z",
-      "exit_time": "2026-05-22T17:17:19.956219Z",
-      "pnl": -363.3,
-      "pnl_pct": -0.0039,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
+      "symbol": "PLTR",
+      "entry_price": 137.1686,
+      "exit_price": 137.12,
+      "qty": 1467,
+      "entry_time": "2026-05-22T17:17:08.265604Z",
+      "exit_time": "2026-05-22T17:22:24.347336204Z",
+      "pnl": -71.29,
+      "pnl_pct": -0.0004,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
     },
     {
       "symbol": "COIN",
-      "entry_price": 188.95,
-      "exit_price": 188.96,
-      "qty": 197,
-      "entry_time": "2026-05-22T17:21:11.445583Z",
-      "exit_time": "2026-05-22T17:17:18.695298Z",
-      "pnl": 1.97,
-      "pnl_pct": 0.0001,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
+      "entry_price": 189.0933,
+      "exit_price": 188.85,
+      "qty": 591,
+      "entry_time": "2026-05-22T17:17:05.222613Z",
+      "exit_time": "2026-05-22T17:22:24.175890027Z",
+      "pnl": -143.81,
+      "pnl_pct": -0.0013,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "SOFI",
+      "entry_price": 15.66,
+      "exit_price": 15.65,
+      "qty": 13234,
+      "entry_time": "2026-05-22T17:17:07.158295Z",
+      "exit_time": "2026-05-22T17:22:24.445255257Z",
+      "pnl": -132.36,
+      "pnl_pct": -0.0006,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
     },
     {
       "symbol": "AMD",
@@ -144,51 +144,137 @@
       "exit_time": "2026-05-22T17:17:19.153682Z",
       "pnl": -120.69,
       "pnl_pct": -0.0006,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
-    },
-    {
-      "symbol": "PLTR",
-      "entry_price": 137.12,
-      "exit_price": 137.12,
-      "qty": 489,
-      "entry_time": "2026-05-22T17:21:09.458987Z",
-      "exit_time": "2026-05-22T17:17:19.179567Z",
-      "pnl": 0.0,
-      "pnl_pct": 0.0,
-      "exit_reason": "Alpaca EOD close (recovered)",
-      "strategy": "recovered",
-      "approach": ""
-    },
-    {
-      "symbol": "COIN",
-      "entry_price": 189.24,
-      "exit_price": 425.96,
-      "qty": 201,
-      "entry_time": "2026-05-22 17:50:02.385925+00:00",
-      "exit_time": "2026-05-22T17:50:06.063668+00:00",
-      "pnl": 47580.72,
-      "pnl_pct": 1.2509,
-      "exit_reason": "Take profit hit at $190.75 (+125.1%)",
+      "exit_reason": "Recovered from Alpaca",
       "strategy": "",
-      "approach": "Micro Momentum"
+      "approach": "Profit Maximizer"
     },
     {
-      "symbol": "COIN",
-      "entry_price": 188.99,
-      "exit_price": 425.96,
-      "qty": 201,
-      "entry_time": "2026-05-22T17:52:48.832372+00:00",
-      "exit_time": "2026-05-22T17:52:48.832372+00:00",
-      "pnl": 47630.97,
-      "pnl_pct": 1.2539,
-      "exit_reason": "Take profit hit at $190.50 (+125.4%)",
+      "symbol": "AMZN",
+      "entry_price": 267.7,
+      "exit_price": 267.71,
+      "qty": 346,
+      "entry_time": "2026-05-22T17:17:03.746117Z",
+      "exit_time": "2026-05-22T17:17:19.956219Z",
+      "pnl": 3.46,
+      "pnl_pct": 0.0,
+      "exit_reason": "Recovered from Alpaca",
+      "strategy": "",
+      "approach": "Profit Maximizer"
+    },
+    {
+      "symbol": "AMZN",
+      "entry_price": 268.76,
+      "exit_price": 227.7,
+      "qty": 334,
+      "entry_time": "2026-05-22T17:40:31.029588+00:00",
+      "exit_time": "2026-05-22T17:40:31.029588+00:00",
+      "pnl": -13714.04,
+      "pnl_pct": -0.1528,
+      "exit_reason": "Fixed stop hit at $267.68 (-15.3%)",
       "strategy": "",
       "approach": "Micro Momentum"
     }
   ],
   "snapshots": [
+    {
+      "timestamp": "2026-05-22T13:50:25.238863+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:51:32.244181+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:52:39.038152+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:53:45.713387+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:54:51.786475+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:55:57.396844+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:57:05.632880+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:58:12.862203+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T13:59:21.132036+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T14:00:40.089732+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
+    {
+      "timestamp": "2026-05-22T14:01:49.612568+00:00",
+      "portfolio_value": 989786.78,
+      "cash": 989786.78,
+      "open_positions": 0,
+      "daily_pnl": 0.0,
+      "total_pnl": -32161.18,
+      "drawdown": 0.0102
+    },
     {
       "timestamp": "2026-05-22T14:02:56.943663+00:00",
       "portfolio_value": 989786.78,
@@ -1889,105 +1975,6 @@
       "daily_pnl": 0.0,
       "total_pnl": -14745.0,
       "drawdown": 0.0111
-    },
-    {
-      "timestamp": "2026-05-22T17:43:37.617062+00:00",
-      "portfolio_value": 988930.92,
-      "cash": 988930.92,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": -1141.29,
-      "drawdown": 0.0111
-    },
-    {
-      "timestamp": "2026-05-22T17:43:53.976417+00:00",
-      "portfolio_value": 988891.7,
-      "cash": 988891.7,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 46938.71,
-      "drawdown": 0.0111
-    },
-    {
-      "timestamp": "2026-05-22T17:45:08.595422+00:00",
-      "portfolio_value": 988866.92,
-      "cash": 988866.92,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 46938.71,
-      "drawdown": 0.0111
-    },
-    {
-      "timestamp": "2026-05-22T17:47:28.346579+00:00",
-      "portfolio_value": 988834.92,
-      "cash": 988834.92,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 46162.71,
-      "drawdown": 0.0112
-    },
-    {
-      "timestamp": "2026-05-22T17:47:44.039167+00:00",
-      "portfolio_value": 988814.92,
-      "cash": 988814.92,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 46162.71,
-      "drawdown": 0.0112
-    },
-    {
-      "timestamp": "2026-05-22T17:48:56.307064+00:00",
-      "portfolio_value": 988814.92,
-      "cash": 988814.92,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 46162.71,
-      "drawdown": 0.0112
-    },
-    {
-      "timestamp": "2026-05-22T17:50:22.986881+00:00",
-      "portfolio_value": 988766.68,
-      "cash": 988766.68,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 46439.43,
-      "drawdown": 0.0112
-    },
-    {
-      "timestamp": "2026-05-22T17:50:36.165550+00:00",
-      "portfolio_value": 988748.59,
-      "cash": 988748.59,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 46439.43,
-      "drawdown": 0.0113
-    },
-    {
-      "timestamp": "2026-05-22T17:51:48.188876+00:00",
-      "portfolio_value": 988748.59,
-      "cash": 988748.59,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 46439.43,
-      "drawdown": 0.0113
-    },
-    {
-      "timestamp": "2026-05-22T17:53:10.257354+00:00",
-      "portfolio_value": 988670.2,
-      "cash": 988670.2,
-      "open_positions": 1,
-      "daily_pnl": 0.0,
-      "total_pnl": 94070.4,
-      "drawdown": 0.0113
-    },
-    {
-      "timestamp": "2026-05-22T17:54:23.202260+00:00",
-      "portfolio_value": 988650.1,
-      "cash": 988650.1,
-      "open_positions": 0,
-      "daily_pnl": 0.0,
-      "total_pnl": 94070.4,
-      "drawdown": 0.0113
     }
   ]
 }

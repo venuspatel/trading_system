@@ -511,7 +511,7 @@ Regime: {s.regime}  |  SPY trend: {s.spy_trend}  |  SPY RSI: {s.spy_rsi:.1f}  | 
 
 === HARD BOUNDS (enforced after your response — stay within these) ===
 stop_loss_pct 0.0010–0.0050 | take_profit_pct 0.0020–0.0100
-min_conviction_score 1.0–2.0 | max_open_positions 3–15
+min_conviction_score 1.0–3.0 | max_open_positions 3–15
 intraday_interval_min 1–5 | min_risk_reward 1.2–4.0 | min_strategies_agree 1–4
 
 === INSTRUCTIONS ===

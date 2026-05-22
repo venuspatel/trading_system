@@ -710,7 +710,7 @@ class PortfolioTracker:
 
                 # Sanity check: skip if price drift > 15% (impossible intraday for stop/TP)
                 drift = abs(exit_price - entry_price) / entry_price if entry_price else 0
-                if drift > 0.03:  # V2 stop=0.4% TP=0.8%, nothing legit exceeds 3%
+                if drift > 0.15:
                     logger.warning(
                         f"[Portfolio] EOD recovery: {sym} SKIPPED — "
                         f"drift {drift:.1%} too large (entry=${entry_price:.2f} "

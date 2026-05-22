@@ -200,8 +200,6 @@ class TradingAgent:
         self._last_scan       : Optional[datetime] = None
         self._decisions_today : List[TradeDecision] = []
         self._cycle_count     = 0
-        self._symbol_trade_count : dict = {}   # trades per symbol today — churn guard
-        self._symbol_loss_count  : dict = {}   # consecutive losses per symbol today — churn guard
 
         # Callbacks — dashboard subscribes to these
         self._on_decision    : Optional[Callable] = None
