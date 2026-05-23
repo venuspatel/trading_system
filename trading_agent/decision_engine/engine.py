@@ -65,7 +65,6 @@ class TradeDecision:
     paper_trade:      bool           = True
     # Trend classification
     trend_state:      str            = "UNKNOWN"   # UPTREND | DOWNTREND | NEUTRAL | UNKNOWN
-    bounce_entry:     bool           = False        # True when decision came from _evaluate_bounce
 
     # AI reviewer fields
     ai_approved:      Optional[bool] = None
@@ -520,14 +519,12 @@ class DecisionEngine:
                         conviction=bounce_conv,
                         stop_pct=cfg.stop_loss_pct,
                     )
-                    _bounce_decision = self._make_decision(
+                    return self._make_decision(
                         symbol, "BUY", True, report, price, position, risk,
                         timestamp,
                         [f"Bounce in DOWNTREND: {bounce_signal.reason}"],
                         portfolio_value,
                     )
-                    _bounce_decision.bounce_entry = True
-                    return _bounce_decision
                 else:
                     return self._make_decision(
                         symbol, "HOLD", False, report, price, None, None,
