@@ -34,3 +34,4 @@ trading_agent_v2/logs/*.jsonl
 *_15min.csv
 trading_agent/logs/
 trading_agent_v2/logs/
+trading_agent_v2/config/agent_config.json
