@@ -200,7 +200,11 @@ class AlpacaProvider(DataProvider):
                                         adjustment="all", feed=DataFeed.IEX)
                 data = self._stock_client.get_stock_bars(req)
 
-            bars = [self._alpaca_bar_to_bar(symbol, b) for b in data[symbol]]
+            try:
+                raw = data[symbol]
+            except (KeyError, TypeError):
+                raw = []
+            bars = [self._alpaca_bar_to_bar(symbol, b) for b in (raw or [])]
             logger.debug(f"[Alpaca] Fetched {len(bars)} bars for {symbol} ({timeframe})")
             return bars
 
