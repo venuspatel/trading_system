@@ -238,12 +238,14 @@ class DecisionEngine:
                 else:
                     trend_state = "NEUTRAL"
 
-                # ── Block DOWNTREND entries always ────────────────────
+                # ── DOWNTREND → route to bounce detection ─────────────
+                # Instead of blocking, give BounceDetectorStrategy a chance.
+                # If bounce conditions are met, allow a BUY. Otherwise HOLD.
                 if trend_state == "DOWNTREND" and not math.isnan(ma5):
-                    return self._make_decision(
-                        symbol, df, report, cfg,
-                        action="HOLD",
-                        reason=f"{symbol} DOWNTREND (score={trend_score}) — price ${price:.2f} vs MA5 ${ma5:.2f} MA20 ${ma20:.2f}. Blocked.",
+                    return self._evaluate_bounce(
+                        symbol, df, report, price,
+                        trend_score, ma5, ma20,
+                        timestamp, portfolio_value,
                     )
 
                 # ── Block NEUTRAL entries in RANGING market ───────────
@@ -465,6 +467,89 @@ class DecisionEngine:
         elif report.sell_count > report.buy_count:
             return "SELL", report.sell_count
         return "HOLD", 0
+
+    def _evaluate_bounce(
+        self,
+        symbol:          str,
+        df:              "pd.DataFrame",
+        report:          "StrategyReport",
+        price:           float,
+        trend_score:     int,
+        ma5:             float,
+        ma20:            float,
+        timestamp:       "datetime",
+        portfolio_value: float,
+    ) -> "TradeDecision":
+        """
+        Called when trend_state == DOWNTREND.
+        Runs BounceDetectorStrategy in isolation.
+        If bounce signal fires with enough conviction → BUY.
+        Otherwise → HOLD (same as old block, but informative reason).
+        """
+        try:
+            from strategies.bounce_detector import BounceDetectorStrategy
+            bounce_strat  = BounceDetectorStrategy()
+            # AnalysisSummary not required — BounceDetector reads df directly
+            bounce_signal = bounce_strat.generate_signal(symbol, df, None)
+
+            from strategies.base import TradeAction
+            if bounce_signal.action == TradeAction.BUY:
+                # Map 0-1 confidence → engine conviction scale (×3, capped at 4.0)
+                bounce_conv = round(bounce_signal.confidence * 3.0, 2)
+                # Slightly lower threshold for bounce (downtrend context is already filtered)
+                bounce_threshold = max(1.5, self.config.min_conviction_score - 0.5)
+
+                if bounce_conv >= bounce_threshold:
+                    logger.info(
+                        f"[Engine] {symbol} DOWNTREND → bounce BUY "
+                        f"conv={bounce_conv:.2f} | {bounce_signal.reason}"
+                    )
+                    # Size the position using Kelly sizer (same path as normal BUY)
+                    cfg  = self.config
+                    risk = self._risk_guardian.check(symbol, price, portfolio_value)
+                    if risk and risk.blocking:
+                        return self._make_decision(
+                            symbol, "HOLD", False, report, price, None, risk,
+                            timestamp,
+                            [f"Bounce blocked by risk: {risk.blocking[0].reason}"],
+                            portfolio_value,
+                        )
+                    position = self._position_sizer.size(
+                        symbol, price, portfolio_value,
+                        conviction=bounce_conv,
+                        stop_pct=cfg.stop_loss_pct,
+                    )
+                    return self._make_decision(
+                        symbol, "BUY", True, report, price, position, risk,
+                        timestamp,
+                        [f"Bounce in DOWNTREND: {bounce_signal.reason}"],
+                        portfolio_value,
+                    )
+                else:
+                    return self._make_decision(
+                        symbol, "HOLD", False, report, price, None, None,
+                        timestamp,
+                        [f"{symbol} DOWNTREND — bounce signal weak "
+                         f"(conv={bounce_conv:.2f} < {bounce_threshold:.1f})"],
+                        portfolio_value,
+                    )
+            else:
+                return self._make_decision(
+                    symbol, "HOLD", False, report, price, None, None,
+                    timestamp,
+                    [f"{symbol} DOWNTREND (score={trend_score}) — "
+                     f"no bounce setup. "
+                     f"price=${price:.2f} MA5=${ma5:.2f} MA20=${ma20:.2f}"],
+                    portfolio_value,
+                )
+        except Exception as _be:
+            logger.warning(f"[Engine] {symbol} bounce evaluation error: {_be}")
+            return self._make_decision(
+                symbol, "HOLD", False, report, price, None, None,
+                timestamp,
+                [f"{symbol} DOWNTREND — bounce eval error, blocked safely"],
+                portfolio_value,
+            )
 
     def _make_decision(
         self, symbol, action, approved, report, price,

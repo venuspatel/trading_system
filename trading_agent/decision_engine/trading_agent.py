@@ -167,6 +167,9 @@ class TradingAgent:
         self._last_scan       : Optional[datetime] = None
         self._decisions_today : List[TradeDecision] = []
         self._cycle_count     = 0
+        self._bounce_scan_idx : int  = 0   # increments each scan cycle
+        # Per-ticker bounce mode: {sym: {active, consec_losses, next_sl, pause_until_bar}}
+        self._bounce_tickers  : dict = {}
 
         # Callbacks — dashboard subscribes to these
         self._on_decision    : Optional[Callable] = None
@@ -216,6 +219,65 @@ class TradingAgent:
         self.status = AgentStatus.STOPPED
         self._notify_status()
         logger.info("[Agent] Stopped")
+
+
+    def _activate_bounce_mode(self, symbol: str, reason: str = "PM_LOSS") -> None:
+        """Flip ticker into D1+Adaptive bounce mode for rest of session."""
+        existing = self._bounce_tickers.get(symbol, {})
+        self._bounce_tickers[symbol] = {
+            'active':          True,
+            'consec_losses':   existing.get('consec_losses', 0),
+            'next_sl':         existing.get('next_sl', 0.003),
+            'pause_until_bar': existing.get('pause_until_bar', 0),
+        }
+        logger.info(
+            f"[BounceMode] {symbol} ACTIVATED ({reason}) "
+            f"sl={self._bounce_tickers[symbol]['next_sl']*100:.2f}% "
+            f"consec={self._bounce_tickers[symbol]['consec_losses']}"
+        )
+
+    def _record_bounce_exit(self, symbol: str, pnl: float) -> None:
+        """
+        Update adaptive stop after bounce trade exits.
+        WIN  → reset counter + restore normal stop.
+        LOSS → tighten stop; pause after 3 consecutive.
+        """
+        BN_SL_NORMAL  = 0.003
+        BN_SL_TIGHT   = 0.002
+        BN_SL_TIGHTER = 0.0015
+        PAUSE_CYCLES  = 6
+        bt = self._bounce_tickers.get(symbol)
+        if bt is None:
+            return
+        if pnl >= 0:
+            bt['consec_losses']   = 0
+            bt['next_sl']         = BN_SL_NORMAL
+            bt['pause_until_bar'] = 0
+            logger.info(f"[BounceMode] {symbol} bounce WIN — stop reset to {BN_SL_NORMAL*100:.2f}%")
+        else:
+            bt['consec_losses'] += 1
+            c = bt['consec_losses']
+            if c == 1:
+                bt['next_sl'] = BN_SL_TIGHT
+                logger.info(f"[BounceMode] {symbol} loss #1 — stop → {BN_SL_TIGHT*100:.2f}%")
+            elif c == 2:
+                bt['next_sl'] = BN_SL_TIGHTER
+                logger.info(f"[BounceMode] {symbol} loss #2 — stop → {BN_SL_TIGHTER*100:.2f}%")
+            else:
+                bt['pause_until_bar'] = self._bounce_scan_idx + PAUSE_CYCLES
+                bt['consec_losses']   = 0
+                bt['next_sl']         = BN_SL_NORMAL
+                logger.warning(f"[BounceMode] {symbol} loss #{c} — PAUSING {PAUSE_CYCLES} cycles")
+
+    def _reset_bounce_tickers_for_new_day(self) -> None:
+        """Clear all session bounce state at start of new trading day."""
+        if self._bounce_tickers:
+            logger.info(
+                f"[BounceMode] New day — clearing bounce state: "
+                f"{list(self._bounce_tickers.keys())}"
+            )
+        self._bounce_tickers  = {}
+        self._bounce_scan_idx = 0
 
     def reconfigure(self, new_config: AgentConfig):
         """Hot-swap configuration without restarting the agent."""
@@ -968,7 +1030,8 @@ class TradingAgent:
 
     def _scan_cycle(self, scan_type: str = 'EOD'):
         """One complete scan: fetch → analyse → decide → (execute in Layer 5)."""
-        self._cycle_count += 1
+        self._cycle_count    += 1
+        self._bounce_scan_idx += 1
         scan_start = datetime.now(timezone.utc)
         logger.info(f"[Agent] Cycle #{self._cycle_count} ({scan_type}) starting — {self.config.watchlist}")
         # Fully sync _open_positions from Alpaca every cycle
@@ -1275,10 +1338,12 @@ class TradingAgent:
                                         self._ticker_cd.record_win(symbol)
                                     else:
                                         self._ticker_cd.record_loss(symbol)
-                                # Re-entry cooldown after losses only — 60 min block
-                                # Wins can re-enter freely — don't block profitable momentum
+                                # D1+Adaptive: PM loss → bounce mode for rest of session
                                 if pnl < 0:
-                                    self._scheduler.mark_stopped_out(symbol, cooldown_minutes=60)
+                                    self._activate_bounce_mode(symbol, reason="PM_LOSS")
+                                else:
+                                    # PM win — clear any stale bounce state
+                                    self._bounce_tickers.pop(symbol, None)
 
                         elif sig.action == "PARTIAL_SELL":
                             order = self._executor._close_partial(sig.symbol, sig.shares)
@@ -1372,6 +1437,7 @@ class TradingAgent:
             self._last_trade_date = today_date
             self._scheduler.reset_daily_guards()
             logger.info(f"[Agent] New day {today_date} — guards reset")
+            self._reset_bounce_tickers_for_new_day()
 
         for d in decisions:
             if self._on_decision:
@@ -1395,8 +1461,22 @@ class TradingAgent:
                     logger.info(f"[Agent] {d.symbol} already in open position — skipping")
                     continue
 
+                # ── Bounce mode gate ─────────────────────────────────────
+                if d.action == "BUY":
+                    _bt = self._bounce_tickers.get(d.symbol)
+                    if _bt and _bt.get('active'):
+                        # Paused after 3 consecutive bounce losses
+                        if self._bounce_scan_idx < _bt.get('pause_until_bar', 0):
+                            logger.info(f"[Agent] {d.symbol} bounce paused — skipping")
+                            continue
+                        # Only bounce entries allowed — PM signal skipped
+                        if not getattr(d, 'bounce_entry', False):
+                            logger.info(
+                                f"[Agent] {d.symbol} in bounce mode — "
+                                f"PM signal skipped, waiting for exhaustion")
+                            continue
+
                 # ── Scheduler stop-out cooldown gate ─────────────────────
-                # Prevents re-entry after trailing stop / loss exit for 60-120 min
                 if d.action == "BUY" and hasattr(self, '_scheduler'):
                     if self._scheduler.is_in_stop_cooldown(d.symbol):
                         logger.info(f"[Agent] {d.symbol} in stop-out cooldown — skipping")

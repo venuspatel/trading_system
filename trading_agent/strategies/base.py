@@ -66,6 +66,7 @@ class StrategyRole:
     COUNTER_TREND = "Counter-trend"
     NEUTRAL       = "Neutral"
     INTRADAY      = "Intraday"
+    BOUNCE        = "Bounce"   # bounce setups within confirmed downtrends
 
 
 class BaseStrategy(ABC):

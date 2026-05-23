@@ -34,6 +34,7 @@ from .earnings_momentum import EarningsMomentumStrategy
 from .intraday_vwap            import IntradayVWAPStrategy
 from .opening_range_breakout   import OpeningRangeBreakoutStrategy
 from .micro_momentum           import MicroMomentumStrategy
+from .bounce_detector          import BounceDetectorStrategy
 from .advanced_strategies import (
     CandleContinuationStrategy,
     DivergenceStrategy,
@@ -195,7 +196,7 @@ class StrategyEngine:
     MODE_ROLES = {
         "Conservative":     {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
         "Balanced":         {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
-                "Profit Maximizer": {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY},
+                "Profit Maximizer": {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY, StrategyRole.BOUNCE},
         "Micro Momentum":  {StrategyRole.INTRADAY},  # scalp only — fast in/out
         "Aggressive":       {StrategyRole.NEUTRAL, StrategyRole.TREND, StrategyRole.INTRADAY},
         "Long Term":        {StrategyRole.COUNTER_TREND, StrategyRole.NEUTRAL, StrategyRole.TREND},
@@ -219,6 +220,7 @@ class StrategyEngine:
             IntradayVWAPStrategy(),
             OpeningRangeBreakoutStrategy(),
             MicroMomentumStrategy(),
+            BounceDetectorStrategy(),
         ]
 
     @property
