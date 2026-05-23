@@ -1338,9 +1338,6 @@ class TradingAgent:
                                         self._ticker_cd.record_win(symbol)
                                     else:
                                         self._ticker_cd.record_loss(symbol)
-                                # D1+Adaptive: record bounce exit → tightens adaptive stop
-                                if getattr(sig, 'bounce_entry', False):
-                                    self._record_bounce_exit(symbol, pnl)
                                 # D1+Adaptive: PM loss → bounce mode for rest of session
                                 if pnl < 0:
                                     self._activate_bounce_mode(symbol, reason="PM_LOSS")
