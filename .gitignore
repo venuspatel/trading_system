@@ -30,3 +30,7 @@ trading-agent-mobile/.env
 *.jsonl
 trading_agent/logs/*.jsonl
 trading_agent_v2/logs/*.jsonl
+*.bak_*
+*_15min.csv
+trading_agent/logs/
+trading_agent_v2/logs/
