@@ -390,7 +390,7 @@ class DecisionEngine:
         verdict = self.reviewer.review(
             symbol           = symbol,
             action           = dominant_action,
-            conviction_score = report.conviction_score,
+            conviction_score = _enhanced_score,
             strategies_fired = [s.strategy for s in report.signals if s.action.value == dominant_action],
             top_reasons      = [s.reason for s in report.signals if s.action.value == dominant_action][:3],
             buy_signals      = report.buy_count,

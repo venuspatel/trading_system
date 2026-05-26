@@ -92,20 +92,20 @@ class AdaptiveThresholdEngine:
 
         # Adjust conviction floor based on win rate
         if win_rate >= 0.70:
-            # Winning well — can slightly relax conviction to get more trades
+            # Winning well — relax conviction to get more trades
             rec.conviction_floor = 2.0
             rec.min_strategies   = 2
-        elif win_rate >= 0.60:
-            # Doing well — keep current threshold
+        elif win_rate >= 0.55:
+            # Doing well — keep standard threshold
+            rec.conviction_floor = 2.0
+            rec.min_strategies   = 2
+        elif win_rate >= 0.45:
+            # Break-even — tighten slightly but stay tradeable
             rec.conviction_floor = 2.5
             rec.min_strategies   = 2
-        elif win_rate >= 0.50:
-            # Break-even — tighten slightly
-            rec.conviction_floor = 3.0
-            rec.min_strategies   = 3
         else:
-            # Losing — tighten significantly
-            rec.conviction_floor = 3.5
+            # Losing — tighten but cap at 2.5 to avoid full lockout
+            rec.conviction_floor = 2.5
             rec.min_strategies   = 3
 
         # ── 2. Exit reason performance breakdown ─────────────────────

@@ -270,13 +270,23 @@ class TradingAgent:
                 logger.warning(f"[BounceMode] {symbol} loss #{c} — PAUSING {PAUSE_CYCLES} cycles")
 
     def _reset_bounce_tickers_for_new_day(self) -> None:
-        """Clear all session bounce state at start of new trading day."""
-        if self._bounce_tickers:
+        """Clear all session bounce state at start of new trading day.
+        Preserves bar2_preactivate entries set in THIS startup cycle.
+        """
+        # Keep tickers pre-activated this cycle (bar2_preactivate)
+        # They were just set — clearing them would waste the pre-activation
+        keep = {sym: bt for sym, bt in self._bounce_tickers.items()
+                if bt.get("reason") == "bar2_preactivate"}
+        cleared = [s for s in self._bounce_tickers if s not in keep]
+        if cleared:
             logger.info(
-                f"[BounceMode] New day — clearing bounce state: "
-                f"{list(self._bounce_tickers.keys())}"
+                f"[BounceMode] New day — clearing stale bounce state: {cleared}"
             )
-        self._bounce_tickers  = {}
+        if keep:
+            logger.info(
+                f"[BounceMode] New day — preserving bar2 pre-activations: {list(keep.keys())}"
+            )
+        self._bounce_tickers  = keep
         self._bounce_scan_idx = 0
 
     def reconfigure(self, new_config: AgentConfig):
