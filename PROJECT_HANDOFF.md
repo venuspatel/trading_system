@@ -1,10 +1,10 @@
 # TradeAgent — PROJECT HANDOFF
-**Date:** May 23, 2026 | **V1 Equity:** $1,025,010 | **V2 Equity:** ~$998,400
+**Date:** May 26, 2026 | **V1 Equity:** $1,023,323 | **V2 Equity:** $991,694
 
 ---
 
 ## 🎯 PROJECT GOAL
-Build two autonomous AI-powered paper trading agents on Alpaca that scan a watchlist every 1-2 minutes, score signals using 13 strategies, and execute buy/sell decisions with full risk management — running 24/7 with a React dashboard.
+Build two autonomous AI-powered paper trading agents on Alpaca that scan a watchlist every 1-2 minutes, score signals using 15 strategies, and execute buy/sell decisions with full risk management — running 24/7 with a React dashboard.
 
 ---
 
@@ -19,12 +19,15 @@ Alpaca API (paper)
      │
      ├── strategies/engine.py                       ← 15 strategies → StrategyReport + conviction score
      │   ├── momentum.py, breakout.py, micro_momentum.py ...
-     │   └── bounce_detector.py                     ← NEW: exhaustion bounce signal
+     │   └── bounce_detector.py                     ← exhaustion bounce signal
      │
      ├── decision_engine/
      │   ├── trading_agent.py                       ← main scan loop, buy/sell execution
      │   │                                             D1+Adaptive bounce state machine
-     │   ├── engine.py                              ← conviction scoring, MTF, bounce routing gate
+     │   │                                             continuous session-dip pre-activation
+     │   ├── engine.py                              ← conviction scoring, MTF, bounce routing
+     │   ├── adaptive_thresholds.py                 ← conviction floor (capped 2.5 max)
+     │   ├── ai_reviewer.py                         ← Claude reviews BUY decisions
      │   ├── agent_config.py                        ← apply_profit_maximizer() / apply_micro_momentum()
      │   ├── market_scheduler.py                    ← startup/intraday/EOD scans, cooldowns
      │   ├── risk_guardian.py                       ← position limits, daily loss limits
@@ -45,180 +48,176 @@ Alpaca API (paper)
 
 ---
 
-## 📊 CURRENT STATE (May 23, 2026)
+## 📊 CURRENT STATE (May 26, 2026)
 
-### V1 — Profit Maximizer ✅ WORKING + BOUNCE DEPLOYED
+### V1 — Profit Maximizer ✅ RUNNING
 | Field | Value |
 |---|---|
-| Equity | $1,025,010.95 |
+| Equity | $1,023,323 |
 | Keys | PKUPVN2TBTLKAUHOQLIMWGK4BM / 3Y1FwQmVvL7uzWkFELzUGJeXJZ5a8qoboFcWPD1mcn1Q |
 | Stop / TP | 1.0% / 3.0% |
-| Min conviction | 2.5 (adaptive, 60% WR over 116 trades) |
+| Min conviction | 2.0 (adaptive, capped 2.5 max) |
 | Scan interval | 2 min |
 | Max positions | 6 |
-| Win rate | 60% over 116 trades |
-| Strategies | 15 (added BounceDetector) |
-| Status | Running, bounce mode live |
+| Win rate | 60% over 123 trades |
+| Strategies | 15 (including BounceDetector) |
+| Bounce mode | Live — continuous session-dip pre-activation |
+| Status | Running, all fixes deployed |
 
-**Queued for open (9:30 AM ET):**
-- QCOM conv=4.29 🔥 (monthly +60%)
-- MARA conv=4.10 (cooldown LOSS #1 until ~8:46 ET)
-- RKLB conv=3.58
-- AAPL conv=3.50
-- MU conv=3.35
-- AAL conv=2.68 (cooldown LOSS #2 until ~10:16 ET)
-
-### V2 — Micro Momentum ⚠️ NEEDS RESTART + RESET
+### V2 — Micro Momentum ✅ RUNNING (first profitable day)
 | Field | Value |
 |---|---|
-| Equity | ~$998,400 (Alpaca ground truth) |
+| Equity | $991,694 (+$4,455 today) |
 | Keys | PKP3WTGVDUYTDCYW5VDW3Z3CMZ / HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm |
-| Status | portfolio.json has phantom -$1.4M losses from INTC bug. Needs reset. |
+| Stop / TP | 0.25% / 0.50% |
+| Min conviction | 1.5 |
+| Scan interval | 1 min |
+| Max positions | 8 |
+| Status | Running clean — fresh config, BarSet fix deployed |
 
 ---
 
-## ✅ ALL DEPLOYED FIXES (cumulative)
+## ✅ ALL DEPLOYED FIXES (cumulative — May 26 additions)
 
-### Original Fixes 1-14 (May 8, 2026)
-See previous handoff — all deployed to V1, working.
-
-### Fix 15: BounceDetector Strategy (May 22-23, 2026)
-**File:** `strategies/bounce_detector.py` (new file, 191 lines)
-```python
-# Entry conditions — 3 of 4 required:
-# C1: Price dropped ≥1.0% from recent 15-min leg high
-# C2: RSI(14) < 40  (oversold)
-# C3: Hammer candle OR 2-bar low stabilisation (exhaustion)
-# C4: Volume < 85% of 50-bar average (sellers drying up)
-# Confidence: 0.6-1.0 scaled by RSI depth + leg size
-```
-
-### Fix 16: StrategyRole.BOUNCE Added
-**File:** `strategies/base.py`
-```python
-class StrategyRole:
-    BOUNCE = "Bounce"   # ← added — bounce setups within downtrends/volatile moves
-```
-
-### Fix 17: BounceDetector in MODE_ROLES
-**File:** `strategies/engine.py`
-```python
-"Profit Maximizer": {StrategyRole.NEUTRAL, StrategyRole.TREND,
-                      StrategyRole.INTRADAY, StrategyRole.BOUNCE}  # ← BOUNCE added
-```
-
-### Fix 18: DOWNTREND Routing Gate
+### Fix 20: bounce_entry flag on TradeDecision (May 26)
 **File:** `decision_engine/engine.py`
 ```python
-# BEFORE: DOWNTREND always blocked
-if trend_state == "DOWNTREND": return HOLD
+# Added to TradeDecision dataclass:
+bounce_entry: bool = False   # True when decision came from _evaluate_bounce
 
-# AFTER: DOWNTREND routes to bounce evaluation
-if trend_state == "DOWNTREND":
-    return self._evaluate_bounce(symbol, df, report, price, ...)
-# _evaluate_bounce() runs BounceDetectorStrategy in isolation
-# if bounce signal fires with conv ≥ 1.5 → allow BUY
-# otherwise → HOLD with informative reason
+# In _evaluate_bounce():
+_bounce_decision = self._make_decision(...)
+_bounce_decision.bounce_entry = True
+return _bounce_decision
 ```
+**Impact:** Bounce buy gate `getattr(d, 'bounce_entry', False)` now actually returns True. Without this, bounce buys were blocked at the gate forever.
 
-### Fix 19: D1+Adaptive Loss-Triggered Bounce Mode
+### Fix 21: _record_bounce_exit wired into SELL block (May 26)
 **File:** `decision_engine/trading_agent.py`
-
-**The core mechanism:** After any PM (Profit Maximizer) loss on a ticker, that ticker immediately enters bounce mode for the rest of the trading session. The 60-min cooldown is replaced by active bounce monitoring.
-
 ```python
-# Three new methods:
-_activate_bounce_mode(symbol, reason)    # called after PM loss
-_record_bounce_exit(symbol, pnl)         # updates adaptive stop after bounce exit
-_reset_bounce_tickers_for_new_day()      # clears all session state each morning
+# In SELL exit block, after pnl calculated:
+if getattr(sig, 'bounce_entry', False):
+    self._record_bounce_exit(symbol, pnl)
+```
+**Impact:** Adaptive stop tightening now actually fires. Previously the method existed but was never called — consec_losses always stayed 0.
 
-# Adaptive stop tightening after consecutive bounce losses:
-# Normal:  -0.30% stop
-# Loss #1: -0.20% stop (tighter)
-# Loss #2: -0.15% stop (tightest)
-# Loss #3+: 1.5hr pause, reset to -0.30%
-# Bounce WIN: always resets to -0.30%
+### Fix 22: Bounce activates on trailing manager stop-outs (May 26)
+**File:** `decision_engine/trading_agent.py`
+```python
+# In trailing manager exit path, after stop recorded:
+if "stop" in (sig.reason or "").lower():
+    self._scheduler.mark_stopped_out(sig.symbol, cooldown_minutes=120)
+    self._activate_bounce_mode(sig.symbol, reason="PM_LOSS")  # ← NEW
+```
+**Impact:** All stop-outs now activate bounce mode. Previously only stops in the main SELL block triggered bounce — trailing manager stops (90%+ of all stops) were missed entirely.
+
+### Fix 23: bounce_tickers exposed in /api/state (May 26)
+**File:** `dashboard/backend/api.py`
+```python
+"bounce_tickers": {
+    sym: {"active": bt.get("active"), "consec_losses": bt.get("consec_losses"),
+          "next_sl_pct": round(bt.get("next_sl", 0.003)*100, 3)}
+    for sym, bt in (getattr(_agent, "_bounce_tickers", {}) or {}).items()
+} if _agent else {},
 ```
 
-**State machine:**
+### Fix 24: Continuous session-dip bounce pre-activation (May 26)
+**File:** `decision_engine/trading_agent.py`
+```python
+# Runs EVERY scan cycle (was STARTUP only, cycle <= 2)
+# Trigger: ticker dropped >=1% from session high AND RSI < 45
+# Cap: max 4 tickers pre-activated at once
+# Skips: tickers already in open positions or bounce mode
+# Reason tag: "session_dip" (preserved across new-day reset)
+
+if _drop >= 0.010 and _rsi < 45:
+    self._bounce_tickers[_sym] = {
+        "active": True, "consec_losses": 0,
+        "next_sl": 0.003, "reason": "session_dip"
+    }
 ```
-PM loss on TICKER
-    → _bounce_tickers[TICKER] = {active: True, consec_losses: 0, next_sl: 0.003}
-    → next scan: PM signal skipped for TICKER
-    → BounceDetector runs: if RSI<40 + leg>1% + 2/4 conditions → BUY
+**Impact:** Catches mid-session weakness at any time, not just at open. On May 26 today: QCOM dropped 3.9% from session high at 6:44 AM — would have pre-activated at first scan instead of taking PM stop-out.
 
-Bounce WIN  → consec_losses = 0, next_sl = 0.003 (reset)
-Bounce LOSS #1 → next_sl = 0.002
-Bounce LOSS #2 → next_sl = 0.0015
-Bounce LOSS #3 → pause 6 scan cycles (~1.5hr), reset
+### Fix 25: New-day reset preserves pre-activated tickers (May 26)
+**File:** `decision_engine/trading_agent.py`
+```python
+# Preserves both bar2_preactivate AND session_dip entries
+keep = {sym: bt for sym, bt in self._bounce_tickers.items()
+        if bt.get("reason") in ("bar2_preactivate", "session_dip")}
+```
+**Impact:** Bounce tickers set during STARTUP cycle are no longer immediately cleared by the new-day reset that fires at end of cycle 1.
 
-New trading day → all bounce state cleared
+### Fix 26: AIReviewer gets MTF-boosted conviction (May 26)
+**File:** `decision_engine/engine.py`
+```python
+# BEFORE (wrong — raw strategy score):
+conviction_score = report.conviction_score  # e.g. +1.09 for AMAT
+
+# AFTER (correct — final boosted score):
+conviction_score = _enhanced_score  # e.g. +3.12 for AMAT after MTF boost
+```
+**Impact:** AIReviewer was vetoing AVGO (+2.96 final), AMAT (+3.12 final), AMD (+3.58 final) because it saw raw strategy scores (+1.30, +1.09, +1.70). After fix all three approved.
+
+### Fix 27: Adaptive threshold floor capped at 2.5 (May 26)
+**File:** `decision_engine/adaptive_thresholds.py`
+```python
+# BEFORE: 50-60% win rate → floor 3.0 (blocked nearly all trades)
+# AFTER:  floor never exceeds 2.5 regardless of win rate
+if win_rate >= 0.55:    rec.conviction_floor = 2.0
+elif win_rate >= 0.45:  rec.conviction_floor = 2.5
+else:                   rec.conviction_floor = 2.5  # cap at 2.5 even when losing
 ```
 
-**Simulation results on real Alpaca data (May 12-20, 2026):**
-| Stock | Role | PM P&L | D1+Adp P&L | Improvement |
-|---|---|---|---|---|
-| AMD | Volatile (real 15-min data) | -$346 | +$1,091 | +$1,437 |
-| QCOM | Bull | -$940 | +$55 | +$995 |
-| RKLB | Mix/volatile bull | +$531 | +$1,003 | +$472 |
-| HIMS | Downtrend | -$123 | +$136 | +$259 |
-| **Total** | | **-$878** | **+$2,285** | **+$3,163** |
+### Fix 28: V2 BarSet KeyError fix (May 26)
+**File:** `trading_agent_v2/data_layer/providers/alpaca_provider.py`
+```python
+try:
+    raw = data[symbol]
+except (KeyError, TypeError):
+    raw = []
+bars = [self._alpaca_bar_to_bar(symbol, b) for b in (raw or [])]
+```
+**Impact:** `get_bars` errors on all 15 symbols eliminated. V2 was running blind on 1-min bars.
+
+### Fix 29: V2 startup close guard (May 26)
+**File:** `trading_agent_v2/decision_engine/trading_agent.py`
+```python
+# On startup, if stale Alpaca positions exist → close all before first buy
+if self._open_positions:
+    # DELETE https://paper-api.alpaca.markets/v2/positions
+    self._open_positions = {}
+```
+**Impact:** Prevents duplicate buys when V2 restarts with stale positions from previous sessions. Fixed the AAPL/PLTR/AMZN doubling issue.
+
+### Fix 30: V2 AIConfigurator reset (May 26)
+- Cleared `logs/ai_config_log.jsonl` — Claude was defending based on 0% win rate from broken agent history
+- Reset `saved_config.json` to proper Micro Momentum values
+- Removed `config/agent_config.json` — regenerated fresh on restart
+- V2's first profitable day: +$4,455
 
 ---
 
 ## 🚨 OPEN TASKS (priority order)
 
-### IMMEDIATE
-1. **Commit to GitHub** — token expired, commit manually from Mac:
-   ```bash
-   cd ~/Desktop/trading_system
-   git add trading_agent/strategies/base.py \
-           trading_agent/strategies/bounce_detector.py \
-           trading_agent/strategies/engine.py \
-           trading_agent/decision_engine/engine.py \
-           trading_agent/decision_engine/trading_agent.py
-   git commit -m "feat: BounceDetector + D1+Adaptive loss-triggered bounce mode"
-   git push origin master
-   ```
-
-2. **Reset V2 portfolio.json** — phantom INTC losses showing -$1.4M:
-   ```bash
-   python3 -c "
-   import json
-   path = '/Users/venuspatel/Desktop/trading_system/trading_agent_v2/logs/portfolio.json'
-   with open(path, 'w') as f:
-       json.dump({'trades':[],'snapshots':[],'session_start_pnl':0.0,'total_pnl':0.0,'version':2}, f)
-   print('V2 portfolio cleared')
-   "
-   ```
-
-3. **AIReviewer API key** — running in pass-through mode (no key):
-   - Set `ANTHROPIC_API_KEY` in `.env` file
-   - Model string should be `claude-sonnet-4-20250514`
+### IMMEDIATE (before Monday open)
+- None — both agents running, all fixes live
 
 ### SHORT TERM
-4. **Wire `_record_bounce_exit` into exit loop** — the method exists and works but is not yet called from the exit recording section. Add this after recording a bounce trade exit:
-   ```python
-   # In the exit recording block, after pnl is calculated:
-   if symbol in self._bounce_tickers and self._bounce_tickers[symbol].get('active'):
-       self._record_bounce_exit(symbol, pnl)
-   ```
-
-5. **PDT cleanup** — FINRA abolished PDT June 4, 2026 (12 days away):
+1. **PDT cleanup** — FINRA abolished PDT June 4, 2026 (9 days away)
    - Remove `pattern_day_trader`, `daytrade_count`, `daytrading_buying_power` references
    - Replace with plain `buying_power` check
 
-6. **Daily bar fetch for trend classifier** — current classifier uses 15-min MA20 (5 hours of data). Fix: fetch 1Day bars alongside 15-min, use daily MA20 for trend direction. QCOM was being misclassified as DOWNTREND by the 15-min classifier despite being +60% monthly.
+2. **Daily bar fetch for trend classifier** — 15-min MA20 misclassifies stocks. Add 1Day bars for proper trend direction. QCOM was called DOWNTREND despite +60% monthly.
 
-7. **Trade sync robustness** — `GetOrdersRequest` SDK call fails intermittently
+3. **V2 learns from V1 trades** — feed V1 portfolio.json into V2's StrategyRanker
 
-### FUTURE (after paper trading passes 4-week gate)
-8. V2 learns from V1 trades (StrategyRanker cross-feed)
-9. Volatility gate: if avg daily swing >2.5% → activate bounce as supplement even before PM loss
-10. ML-based strategy weight optimizer
-11. News & sentiment analysis layer
-12. IBKR live integration
-13. Options strategies
+4. **Performance tab accuracy** — portfolio.json trade sync for missed stop/TP exits
+
+### FUTURE
+5. ML-based strategy weight optimizer
+6. News & sentiment analysis layer
+7. IBKR live integration
+8. Options strategies
 
 ---
 
@@ -226,23 +225,22 @@ New trading day → all bounce state cleared
 
 | Issue | Cause | Status |
 |---|---|---|
-| V2 phantom -$1.4M P&L | INTC bought 7,158 shares (2x duplicate) | Fix: clear portfolio.json |
-| AIReviewer pass-through | No ANTHROPIC_API_KEY in .env | Set key, use claude-sonnet-4-20250514 |
-| _record_bounce_exit not wired | Method exists, not called from exit loop | Needs 3-line patch |
-| GitHub token expired | ghp_eGs0V... is 401 Unauthorized | Commit from Mac terminal |
-| get_bars errors after hours | Alpaca returns empty BarSet after 4PM ET | Expected, resolves at open |
+| V1 AIReviewer 400 errors | None — working now with correct Anthropic API key | ✅ Fixed |
+| V2 phantom -$1.4M P&L | INTC duplicate bug — old history | ✅ Cleared |
+| get_bars errors after hours | Alpaca returns empty BarSet after 4PM ET | Expected |
+| AMD entry price wrong in V2 | Old Alpaca lifetime basis averaging | Monitor — EOD close clears it |
 
 ---
 
 ## 🔑 KEY DECISIONS (finalized — don't revisit)
 
-1. **D1 session bounce beats D2/D3** — PM loss → bounce for full session outperformed 2hr window (+$1,091 vs -$938) and win-return-to-PM (+$607). Session reset is the right design.
-2. **Loss-triggered > cooldown** — replacing 60-min cooldown with active bounce mode turns a blocking pause into profitable trades.
-3. **Adaptive stop is a safety valve** — it didn't trigger on this dataset (bounce losses weren't consecutive) but protects against 3+ consecutive losses in a genuine freefall.
-4. **Volatility gate pending** — all 4 stocks had avg daily swings >2.5% (AMD 6.2%, QCOM 7.1%, RKLB 9.3%, HIMS 6.9%). A volatility-based gate would activate bounce even before PM losses occur, but this adds complexity. Decided to ship loss-triggered mode first and add volatility gate later.
-5. **15 strategies now active** (was 13, then 14 with BounceDetector) — BounceDetector added to Profit Maximizer MODE_ROLES.
-6. **DOWNTREND → bounce routing** replaces the old unconditional DOWNTREND block. Stocks in downtrend now get bounce evaluated instead of being blocked forever.
-7. All previous key decisions from May 8 handoff remain valid.
+1. **Continuous session-dip bounce** beats startup-only bar-2 check — catches weakness at any point in session
+2. **Loss-triggered > cooldown** — active bounce mode turns losses into recovery trades
+3. **Adaptive threshold capped at 2.5** — never lock out trading entirely even in a losing streak
+4. **AIReviewer must receive MTF-boosted score** — raw strategy score causes false vetoes
+5. **V2 startup guard** — always close stale Alpaca positions before first buy cycle
+6. **V2 AIConfigurator** reads `saved_config.json` on boot — agent_config.json is runtime output, do NOT commit it
+7. All previous key decisions from May 8 + May 23 handoffs remain valid
 
 ---
 
@@ -257,41 +255,59 @@ cd ~/Desktop/trading_system/trading_agent && bash run_dashboard.sh
 lsof -ti:8001,3001 | xargs kill -9 2>/dev/null
 cd ~/Desktop/trading_system/trading_agent_v2 && bash run_dashboard.sh
 
-# Health check
+# Health check both agents
 python3 - << 'EOF'
 import urllib.request, json
+from datetime import datetime
+import zoneinfo
+PST = zoneinfo.ZoneInfo('America/Los_Angeles')
+print(datetime.now(PST).strftime('%I:%M:%S %p PST'))
 for name, port in [('V1',8000),('V2',8001)]:
     try:
         with urllib.request.urlopen(f'http://localhost:{port}/api/state', timeout=5) as r:
             d = json.loads(r.read())
         rep = d.get('reporting',{}); cfg = d.get('config',{})
+        bt  = d.get('bounce_tickers',{})
         print(f"{name}: {d.get('agent_status')} cycle={d.get('cycle_count')} "
-              f"pnl=${rep.get('day_pnl',0):+.2f} bounce_tickers={d.get('bounce_tickers',{})}")
+              f"pnl=${rep.get('day_pnl',0):+.2f} approach={cfg.get('approach')} "
+              f"bounce={list(bt.keys()) or 'none'}")
     except Exception as e:
         print(f"{name}: DOWN — {e}")
 EOF
 
-# Verify bounce state machine
+# Ground truth from Alpaca
 python3 - << 'EOF'
-import sys; sys.path.insert(0,'.')
-from decision_engine.trading_agent import TradingAgent
-from decision_engine.agent_config import AgentConfig, Approach
-cfg = AgentConfig(); cfg.approach = Approach.PROFIT_MAXIMIZER
-agent = TradingAgent(cfg)
-agent._activate_bounce_mode("TEST", "PM_LOSS")
-agent._record_bounce_exit("TEST", -100)
-assert agent._bounce_tickers["TEST"]["next_sl"] == 0.002
-agent._record_bounce_exit("TEST", +200)
-assert agent._bounce_tickers["TEST"]["next_sl"] == 0.003
-agent._reset_bounce_tickers_for_new_day()
-assert agent._bounce_tickers == {}
-print("✓ Bounce state machine fully operational")
+import urllib.request, json
+for name, k, s in [
+    ('V1','PKUPVN2TBTLKAUHOQLIMWGK4BM','3Y1FwQmVvL7uzWkFELzUGJeXJZ5a8qoboFcWPD1mcn1Q'),
+    ('V2','PKP3WTGVDUYTDCYW5VDW3Z3CMZ','HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm'),
+]:
+    hdrs={'APCA-API-KEY-ID':k,'APCA-API-SECRET-KEY':s}
+    acct=json.loads(urllib.request.urlopen(urllib.request.Request(
+        'https://paper-api.alpaca.markets/v2/account',headers=hdrs),timeout=8).read())
+    pos=json.loads(urllib.request.urlopen(urllib.request.Request(
+        'https://paper-api.alpaca.markets/v2/positions',headers=hdrs),timeout=8).read())
+    print(f"{name}: equity=${float(acct['equity']):,.2f} cash=${float(acct['cash']):,.2f} "
+          f"positions={[p['symbol'] for p in pos]}")
 EOF
+
+# Check bounce state
+curl -s http://localhost:8000/api/state | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+bt=d.get('bounce_tickers',{})
+print('bounce_tickers:', bt if bt else 'none')
+"
 
 # Emergency close all V1 positions
 curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
   -H 'APCA-API-KEY-ID: PKUPVN2TBTLKAUHOQLIMWGK4BM' \
   -H 'APCA-API-SECRET-KEY: 3Y1FwQmVvL7uzWkFELzUGJeXJZ5a8qoboFcWPD1mcn1Q'
+
+# Emergency close all V2 positions
+curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
+  -H 'APCA-API-KEY-ID: PKP3WTGVDUYTDCYW5VDW3Z3CMZ' \
+  -H 'APCA-API-SECRET-KEY: HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm'
 ```
 
 ---
@@ -305,32 +321,32 @@ curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
 | May 4 | V1 | +$13,026 | 82% win rate 🔥 | $1,020,217 |
 | May 5 | V1 | +$355 | 23 trades, 82% win, B+ | $1,005,053 |
 | May 6 | V1 | +$4,785 | Cooldown bug blocked AM | $1,030,632 |
-| May 7 | V1 | $0 | `is_stopped_out` wrong name — 0 trades | $1,031,060 |
-| May 8-21 | V1 | -$6,049 | Various losses, 60% WR over 116 trades | $1,025,010 |
-| May 22 | V1 | -$544 | 6 trades, 50% win | $1,025,010 |
-| May 23 | V1 | TBD | Bounce mode live — first day | — |
+| May 7 | V1 | $0 | is_stopped_out wrong name | $1,031,060 |
+| May 8-21 | V1 | -$6,049 | Various losses, 60% WR | $1,025,010 |
+| May 22 | V1 | -$544 | 50% win, 6 trades | $1,025,010 |
+| May 26 | V1 | -$1,686 | Morning stop-outs before fixes, 48%→75% after | $1,023,323 |
+| May 26 | V2 | +$4,455 | First profitable session 🔥 AMD+3963 META+350 | $991,694 |
 
 ---
 
-## 🩺 WHAT TO WATCH ON FIRST BOUNCE DAY
+## 🩺 WHAT TO WATCH ON MONDAY MORNING
 
 ```
-# Bounce activated correctly:
-[BounceMode] AMD ACTIVATED (PM_LOSS) sl=0.30% consec=0
+# Bounce session-dip firing correctly (6:30-7:00 AM):
+[BounceMode] QCOM PRE-ACTIVATED (session dip) drop=2.1% RSI=38.5 high=$248 now=$242 — PM blocked, bounce enabled
+[BounceMode] Session-dip pre-activation: 2 tickers (total: 2/4)
 
-# Bounce blocking PM re-entry:
-[Agent] AMD in bounce mode — PM signal skipped, waiting for exhaustion
+# PM trading blocked for pre-activated tickers:
+[Decision] - QCOM HOLD | conviction=+3.03 | bounce_mode=active
 
 # Bounce entry firing:
-[BounceDetector] AMD: Bounce 3/4 — leg=1.8% RSI=36 vol_dry
-[Decision] ✓ AMD BUY | bounce_entry=True | conviction=+2.1
+[Agent] ACTION: [BUY] QCOM | bounce entry @ $242 stop=0.30% tp=0.60%
 
 # Adaptive stop tightening after loss:
-[BounceMode] AMD loss #1 — stop → 0.20%
-[BounceMode] AMD loss #2 — stop → 0.15%
+[BounceMode] QCOM loss #1 — stop → 0.20%
 
-# Full session reset:
-[BounceMode] New day — clearing bounce state: ['AMD', 'QCOM']
+# Clean day (no dips):
+# No [BounceMode] lines at all — pure PM trading
 ```
 
 ---
@@ -339,11 +355,13 @@ curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
 
 - **Python 3.11** on macOS (venuspatel's MacBook)
 - **Alpaca Paper Trading** — base URL `https://paper-api.alpaca.markets/v2`
-- **15 strategies** — Momentum, Breakout, CandleReversal, CandleContinuation, Divergence, Fibonacci, VolumeConfirmation, MultiTimeframe, TrendRegime, TrendStrength, EarningsMomentum, IntradayVWAP, OpeningRangeBreakout, MicroMomentum, **BounceDetector** (new)
+- **15 strategies** active in V1 Profit Maximizer
 - **PDT rule abolished June 4, 2026** — clean up references after that date
 - **Market hours** — 6:30 AM – 1:00 PM PST
-- **ast.parse() every file** before deploying
-- **Targeted patches for V2** — never blindly copy V1 files
+- **ast.parse() every file** before deploying — syntax errors killed multiple trading days
+- **Targeted patches for V2** — never blindly copy V1 files, agents have diverged
+- **V2 agent_config.json is runtime** — never commit it, gitignored
+- **Bounce tickers persist across new-day reset** if reason is session_dip or bar2_preactivate
 
 ---
 
@@ -356,8 +374,10 @@ curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
 │   ├── saved_config.json
 │   ├── logs/portfolio.json
 │   ├── decision_engine/
-│   │   ├── trading_agent.py    ← D1+Adaptive bounce state machine (1702 lines)
-│   │   ├── engine.py           ← DOWNTREND → bounce routing gate (675 lines)
+│   │   ├── trading_agent.py         ← 1988 lines — bounce state machine + session-dip
+│   │   ├── engine.py                ← MTF conviction, bounce routing, _enhanced_score to AI
+│   │   ├── adaptive_thresholds.py   ← conviction floor capped 2.5
+│   │   ├── ai_reviewer.py           ← Claude vets BUY decisions
 │   │   ├── agent_config.py
 │   │   ├── market_scheduler.py
 │   │   ├── risk_guardian.py
@@ -366,22 +386,24 @@ curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
 │   │   ├── alpaca_executor.py
 │   │   └── portfolio_tracker.py
 │   ├── strategies/
-│   │   ├── base.py             ← StrategyRole.BOUNCE added (125 lines)
-│   │   ├── engine.py           ← BounceDetector in MODE_ROLES (282 lines)
-│   │   ├── bounce_detector.py  ← NEW strategy (191 lines)
-│   │   ├── momentum.py
-│   │   └── micro_momentum.py
+│   │   ├── bounce_detector.py       ← 15th strategy
+│   │   ├── engine.py                ← MODE_ROLES with BOUNCE
+│   │   └── [12 other strategies]
 │   ├── data_layer/providers/
 │   │   └── alpaca_provider.py
 │   └── dashboard/backend/
-│       └── api.py
+│       └── api.py                   ← bounce_tickers in /api/state
 │
-└── trading_agent_v2/           ← V2 (ports 3001/8001) — NEEDS FIXES
+└── trading_agent_v2/           ← V2 (ports 3001/8001)
     ├── run_dashboard.sh
-    ├── saved_config.json       ← Micro Momentum config
-    └── logs/portfolio.json     ← NEEDS RESET (phantom losses)
+    ├── saved_config.json            ← stop 0.25% / TP 0.50% (correct)
+    ├── decision_engine/
+    │   └── trading_agent.py         ← startup close guard
+    ├── data_layer/providers/
+    │   └── alpaca_provider.py       ← BarSet KeyError fix
+    └── logs/portfolio.json          ← 10 real trades, clean
 ```
 
 ---
 
-*TradeAgent Project Handoff | May 23, 2026 | Confidential*
+*TradeAgent Project Handoff | May 26, 2026 | Confidential*
