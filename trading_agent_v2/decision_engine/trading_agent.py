@@ -418,6 +418,28 @@ class TradingAgent:
                 for sym, pos in self._executor.open_positions.items()
             }
 
+            # Startup guard: close any pre-existing Alpaca positions
+            # Prevents duplicate buys when agent restarts with stale positions in account
+            if self._open_positions:
+                logger.warning(
+                    f"[Agent] STARTUP: found {len(self._open_positions)} pre-existing positions "
+                    f"{list(self._open_positions.keys())} — closing before first buy cycle"
+                )
+                try:
+                    import urllib.request as _ur, json as _js
+                    from config import cfg as _cfg
+                    _hdrs = {
+                        "APCA-API-KEY-ID":     _cfg.alpaca_api_key,
+                        "APCA-API-SECRET-KEY": _cfg.alpaca_secret_key,
+                    }
+                    _base = "https://paper-api.alpaca.markets/v2"
+                    _req  = _ur.Request(f"{_base}/positions", headers=_hdrs, method="DELETE")
+                    _ur.urlopen(_req, timeout=10)
+                    self._open_positions = {}
+                    logger.info("[Agent] STARTUP: pre-existing positions closed — starting fresh")
+                except Exception as _e:
+                    logger.warning(f"[Agent] STARTUP: could not close positions: {_e}")
+
             # Sync today's closed trades from Alpaca into portfolio tracker
             # This catches trades missed when agent was restarted or stop/TP fired
             try:
