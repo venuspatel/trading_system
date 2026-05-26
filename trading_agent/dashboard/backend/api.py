@@ -840,6 +840,15 @@ def get_state():
         "intraday_vwap":   agent_state.get("intraday_vwap", {}),
         "watchlist":       _config.watchlist if _config else [],
         "cycle_count":     getattr(_agent, "_cycle_count", agent_state.get("cycle_count", 0)) if _agent else 0,
+        "bounce_tickers":  {
+            sym: {
+                "active":        bt.get("active", False),
+                "consec_losses": bt.get("consec_losses", 0),
+                "next_sl_pct":   round(bt.get("next_sl", 0.003)*100, 3),
+                "pause_until":   bt.get("pause_until_bar", 0),
+            }
+            for sym, bt in (getattr(_agent, "_bounce_tickers", {}) or {}).items()
+        } if _agent else {},
         "news_sentiment":  _news_cache,
         "discipline":      _agent.discipline_status() if _agent and hasattr(_agent, 'discipline_status') else {},
         "conviction_breakdown": _agent.last_conviction_breakdown() if _agent and hasattr(_agent, 'last_conviction_breakdown') else {},

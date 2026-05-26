@@ -1297,6 +1297,8 @@ class TradingAgent:
                             # Fix 1: Mark stop-loss exits with 2hr cooldown to prevent re-entry
                             if "stop" in (sig.reason or "").lower() or "Stop" in (sig.reason or ""):
                                 self._scheduler.mark_stopped_out(sig.symbol, cooldown_minutes=120)
+                                # D1+Adaptive: stop-out → activate bounce mode for rest of session
+                                self._activate_bounce_mode(sig.symbol, reason="PM_LOSS")
 
                             # Record completed trade in portfolio tracker
                             if order and entry_price > 0:
