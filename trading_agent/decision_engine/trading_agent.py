@@ -276,7 +276,7 @@ class TradingAgent:
         # Keep tickers pre-activated this cycle (bar2_preactivate)
         # They were just set — clearing them would waste the pre-activation
         keep = {sym: bt for sym, bt in self._bounce_tickers.items()
-                if bt.get("reason") == "bar2_preactivate"}
+                if bt.get("reason") in ("bar2_preactivate", "session_dip")}
         cleared = [s for s in self._bounce_tickers if s not in keep]
         if cleared:
             logger.info(
@@ -1167,51 +1167,63 @@ class TradingAgent:
         except Exception as _pme:
             logger.debug(f"[Agent] Premarket scoring skipped: {_pme}")
 
-        # ── Bar-2 bounce pre-activation (Scenario B) ─────────────────
-        # On STARTUP scan only: if a ticker shows weakness in bars 0-1
-        # pre-activate bounce mode BEFORE PM trading begins.
-        # Trigger: bar0 was red AND price still below open after bar1 AND RSI < 48
-        if scan_type == "STARTUP" and self._cycle_count <= 2 and intraday_data:
+        # ── Continuous bounce pre-activation ──────────────────────────
+        # Every scan cycle: check all tickers for intraday weakness.
+        # Trigger: dropped >=1% from session high AND RSI < 45
+        # Max 4 tickers at once to avoid overexposure on broad selloffs.
+        # Catches weakness at open AND mid-session dips.
+        if intraday_data:
             try:
+                MAX_BOUNCE_PREACT = 4
+                _current_preact   = sum(
+                    1 for bt in self._bounce_tickers.values()
+                    if bt.get("reason") in ("bar2_preactivate", "session_dip")
+                )
                 _preact_count = 0
                 for _sym, _df_b2 in intraday_data.items():
+                    if _current_preact + _preact_count >= MAX_BOUNCE_PREACT:
+                        break
                     if _sym in self._bounce_tickers:
                         continue
-                    if len(_df_b2) < 2:
+                    if _sym in self._open_positions:
                         continue
-                    _b0_open  = float(_df_b2["open"].iloc[-2]) if "open" in _df_b2.columns else float(_df_b2["close"].iloc[-2])
-                    _b0_close = float(_df_b2["close"].iloc[-2])
-                    _b1_close = float(_df_b2["close"].iloc[-1])
-                    _closes   = _df_b2["close"].values
+                    if len(_df_b2) < 5:
+                        continue
+                    _sess_high = float(_df_b2["high"].max()) if "high" in _df_b2.columns                                  else float(_df_b2["close"].max())
+                    _cur_price = float(_df_b2["close"].iloc[-1])
+                    _drop      = (_sess_high - _cur_price) / _sess_high if _sess_high > 0 else 0
+                    _closes = _df_b2["close"].values
                     if len(_closes) >= 15:
-                        _dlts = [_closes[i]-_closes[i-1] for i in range(1,len(_closes))]
+                        _dlts  = [_closes[i]-_closes[i-1] for i in range(1,len(_closes))]
                         _gains = [max(d,0) for d in _dlts[-14:]]
                         _loss  = [max(-d,0) for d in _dlts[-14:]]
                         _ag = sum(_gains)/14; _al = sum(_loss)/14
                         _rsi = 100 - 100/(1+_ag/max(_al,1e-9))
                     else:
                         _rsi = 50.0
-                    _bar0_red  = _b0_close < _b0_open
-                    _bar1_weak = _b1_close < _b0_open
-                    _rsi_weak  = _rsi < 48
-                    if _bar0_red and _bar1_weak and _rsi_weak:
+                    if _drop >= 0.010 and _rsi < 45:
                         self._bounce_tickers[_sym] = {
                             "active":          True,
                             "consec_losses":   0,
                             "next_sl":         0.003,
                             "pause_until_bar": 0,
-                            "reason":          "bar2_preactivate",
+                            "reason":          "session_dip",
                         }
                         _preact_count += 1
                         logger.info(
-                            f"[BounceMode] {_sym} PRE-ACTIVATED (bar2) "
-                            f"bar0_red={_bar0_red} bar1_weak={_bar1_weak} RSI={_rsi:.1f} "
+                            f"[BounceMode] {_sym} PRE-ACTIVATED (session dip) "
+                            f"drop={_drop*100:.1f}% RSI={_rsi:.1f} "
+                            f"high=${_sess_high:.2f} now=${_cur_price:.2f} "
                             f"— PM blocked, bounce enabled"
                         )
                 if _preact_count:
-                    logger.info(f"[BounceMode] Bar-2 pre-activation: {_preact_count} tickers")
+                    logger.info(
+                        f"[BounceMode] Session-dip pre-activation: "
+                        f"{_preact_count} tickers (total: "
+                        f"{_current_preact + _preact_count}/{MAX_BOUNCE_PREACT})"
+                    )
             except Exception as _b2e:
-                logger.debug(f"[Agent] Bar-2 pre-activation failed: {_b2e}")
+                logger.debug(f"[Agent] Session-dip pre-activation failed: {_b2e}")
 
         for symbol in scan_watchlist:
             try:
