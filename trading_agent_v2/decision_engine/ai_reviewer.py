@@ -40,7 +40,7 @@ import urllib.request
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-sonnet-4-5"
 MAX_TOKENS        = 600
 
 

@@ -337,18 +337,20 @@ class AlpacaExecutor:
                                 and _o.get("filled_avg_price")):
                             _sym = str(_o.get("symbol", "")).upper()
                             # Keep the latest fill price for each symbol
-                            self._today_fills[_sym] = float(_o["filled_avg_price"])
+                            _today_fills[_sym] = float(_o["filled_avg_price"])
                     logger.info(
                         f"[Executor] Today's fill prices loaded: {list(_today_fills.keys())}"
                     )
                 except Exception as _fe:
                     logger.warning(f"[Executor] Could not fetch today fills: {_fe}")
 
+                # Assign populated local dict to self — self was None until now
+                self._today_fills = _today_fills
                 logger.info(
                     f"[Executor] Today fill prices cached: "
                     f"{list(self._today_fills.keys())}"
                 )
-            _today_fills = self._today_fills
+            _today_fills = self._today_fills or {}
 
             for symbol, ap in alpaca_pos_map.items():
                 if symbol not in self._positions:
