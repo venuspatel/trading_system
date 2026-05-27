@@ -58,7 +58,7 @@ class AlpacaExecutor:
 
         # Local position + order tracking
         self._positions:   Dict[str, Position] = {}
-        self._today_fills: Dict[str, float]    = {}  # FILL_PRICE_CACHE — populated once per session
+        self._today_fills                       = None  # FILL_PRICE_CACHE — None=unfetched, {}=fetched/cleared
         self._orders:     Dict[str, Order]    = {}   # keyed by client_order_id
 
     # ------------------------------------------------------------------
@@ -131,6 +131,21 @@ class AlpacaExecutor:
             qty       = qty,
             order_type = OrderType.MARKET,
         )
+
+        # Paper trading: market orders return SUBMITTED immediately, fill is async.
+        # Poll once for fill confirmation before placing stop/TP orders.
+        if order.status == OrderStatus.SUBMITTED and order.broker_order_id:
+            try:
+                import time as _t
+                _t.sleep(1.0)  # paper fills within ~1s
+                _fo = self._client.get_order_by_id(order.broker_order_id)
+                if str(_fo.status).lower() in ('filled', 'partially_filled'):
+                    order.status           = OrderStatus.FILLED
+                    order.filled_avg_price = float(_fo.filled_avg_price or 0) or order.filled_avg_price
+                    order.filled_qty       = int(_fo.filled_qty or 0)
+                    logger.info(f"[Executor] {symbol} fill confirmed @ ${order.filled_avg_price:.2f}")
+            except Exception as _fe:
+                logger.warning(f"[Executor] Fill poll failed for {symbol}: {_fe}")
 
         if order.status == OrderStatus.FILLED:
             fill_price = order.filled_avg_price or decision.stop_loss / 0.97
@@ -286,7 +301,8 @@ class AlpacaExecutor:
 
             # Import any Alpaca positions not yet tracked locally
             # FILL_PRICE_CACHE — fetch orders API only once per session
-            if not self._today_fills:
+            # None = never fetched. {} = fetched (or intentionally cleared) — don't re-fetch.
+            if self._today_fills is None:
                 # FILL_PRICE_FROM_ORDERS — architectural fix 2026-05-22
                 # Always use today's BUY order fill price, never avg_entry_price.
                 # avg_entry_price = Alpaca's lifetime blended cost basis across ALL sessions.
