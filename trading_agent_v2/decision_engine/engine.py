@@ -194,6 +194,30 @@ class DecisionEngine:
         _regime_threshold = (self._current_regime.thresholds.conviction
                              if self._current_regime else cfg.min_conviction_score)
 
+        # Micro Momentum regime cap — scalping can't clear swing-trade thresholds.
+        # RANGING=2.5 is calibrated for V1 swing trades; V2 raw scores max ~1.8.
+        # Cap to cfg.min_conviction_score + 0.3. V1 Profit Maximizer unaffected.
+        # Detect Micro Momentum approach once — used by regime cap, NEUTRAL block, ADX filter
+        _is_micro_mm = False
+        try:
+            _approach_val = getattr(cfg, 'approach', '')
+            _approach_str = _approach_val.value if hasattr(_approach_val, 'value') else str(_approach_val)
+            _is_micro_mm  = _approach_str.lower() in ('micro momentum', 'micro_momentum')
+        except Exception:
+            pass
+
+        # Micro Momentum regime cap — scalping can't clear swing-trade thresholds.
+        # RANGING=2.5 is calibrated for V1 swing trades; V2 raw scores max ~1.8.
+        # Cap to cfg.min_conviction_score + 0.3. V1 Profit Maximizer unaffected.
+        if _is_micro_mm:
+            _micro_cap = cfg.min_conviction_score + 0.3
+            if _regime_threshold > _micro_cap:
+                logger.debug(
+                    f"[Engine] Micro Momentum regime cap: {_regime_threshold:.1f} "
+                    f"-> {_micro_cap:.1f} (floor {cfg.min_conviction_score:.1f} + 0.3)"
+                )
+                _regime_threshold = _micro_cap
+
         # TREND CLASSIFICATION — dynamic per-stock trend state
         # Replaces the fixed high_loss_symbols list.
         # Classifies every stock as UPTREND / DOWNTREND / NEUTRAL before entry.
@@ -246,9 +270,11 @@ class DecisionEngine:
                         reason=f"{symbol} DOWNTREND (score={trend_score}) — price ${price:.2f} vs MA5 ${ma5:.2f} MA20 ${ma20:.2f}. Blocked.",
                     )
 
-                # ── Block NEUTRAL entries in RANGING market ───────────
+                # ── Block NEUTRAL entries in RANGING market ───────
+                # Exception: Micro Momentum scalps don't need a confirmed swing trend.
+                # A 0.5% TP trade works on NEUTRAL stocks — the regime cap above guards entry bar.
                 regime_name = self._current_regime.regime if self._current_regime else "UNKNOWN"
-                if trend_state == "NEUTRAL" and regime_name == "RANGING":
+                if trend_state == "NEUTRAL" and regime_name == "RANGING" and not _is_micro_mm:
                     return self._make_decision(
                         symbol, df, report, cfg,
                         action="HOLD",
@@ -289,11 +315,14 @@ class DecisionEngine:
                 minus_di = 100 * minus_dm.rolling(14).mean() / atr14.replace(0, float('nan'))
                 dx       = (100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, float('nan')))
                 adx      = dx.rolling(14).mean().iloc[-1]
-                if not pd.isna(adx) and adx < 20:
+                # Micro Momentum uses a lower ADX floor — scalping doesn't need
+                # the sustained directional trend ADX>20 measures.
+                _adx_floor = 12 if _is_micro_mm else 20
+                if not pd.isna(adx) and adx < _adx_floor:
                     return self._make_decision(
                         symbol, df, report, cfg,
                         action = "HOLD",
-                        reason = f"RANGING market + {symbol} ADX={adx:.1f}<20 (no trend) — skipping entry",
+                        reason = f"RANGING market + {symbol} ADX={adx:.1f}<{_adx_floor} (no trend) — skipping entry",
                     )
                 logger.debug(f"[Engine] {symbol} ADX={adx:.1f} — trend confirmed in RANGING market")
             except Exception as _e:
