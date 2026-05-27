@@ -418,27 +418,74 @@ class TradingAgent:
                 for sym, pos in self._executor.open_positions.items()
             }
 
-            # Startup guard: close any pre-existing Alpaca positions
-            # Prevents duplicate buys when agent restarts with stale positions in account
+            # Startup guard: close ALL pre-existing positions on restart
+            # V2 Micro Momentum is a pure intraday strategy — every session starts fresh.
+            # Keeping positions across restarts causes stale cost-basis stops to fire
+            # immediately (-15% to -48% losses on first cycle). Always start clean.
             if self._open_positions:
                 logger.warning(
-                    f"[Agent] STARTUP: found {len(self._open_positions)} pre-existing positions "
-                    f"{list(self._open_positions.keys())} — closing before first buy cycle"
+                    f"[Agent] STARTUP: closing {len(self._open_positions)} pre-existing "
+                    f"positions {list(self._open_positions.keys())} — starting fresh"
                 )
                 try:
-                    import urllib.request as _ur, json as _js
+                    import urllib.request as _ur
+                    import time as _time
                     from config import cfg as _cfg
                     _hdrs = {
                         "APCA-API-KEY-ID":     _cfg.alpaca_api_key,
                         "APCA-API-SECRET-KEY": _cfg.alpaca_secret_key,
                     }
                     _base = "https://paper-api.alpaca.markets/v2"
-                    _req  = _ur.Request(f"{_base}/positions", headers=_hdrs, method="DELETE")
+
+                    # Send close-all request
+                    _req = _ur.Request(f"{_base}/positions", headers=_hdrs, method="DELETE")
                     _ur.urlopen(_req, timeout=10)
-                    self._open_positions = {}
-                    logger.info("[Agent] STARTUP: pre-existing positions closed — starting fresh")
+                    logger.info("[Agent] STARTUP: DELETE /positions sent — waiting for settlement")
+
+                    # Poll until Alpaca confirms all positions are closed (max 10s)
+                    for _attempt in range(10):
+                        _time.sleep(1.0)
+                        try:
+                            _poll_req = _ur.Request(f"{_base}/positions", headers=_hdrs)
+                            _remaining = __import__('json').loads(
+                                _ur.urlopen(_poll_req, timeout=5).read()
+                            )
+                            if not _remaining:
+                                logger.info(
+                                    f"[Agent] STARTUP: positions confirmed empty "
+                                    f"after {_attempt+1}s — safe to proceed"
+                                )
+                                break
+                            logger.debug(
+                                f"[Agent] STARTUP: {len(_remaining)} positions still settling "
+                                f"({[p['symbol'] for p in _remaining]}) — waiting..."
+                            )
+                        except Exception as _pe:
+                            logger.debug(f"[Agent] STARTUP: poll error: {_pe}")
+                    else:
+                        logger.warning("[Agent] STARTUP: positions may not have settled after 10s — proceeding anyway")
+
                 except Exception as _e:
-                    logger.warning(f"[Agent] STARTUP: could not close positions: {_e}")
+                    logger.warning(f"[Agent] STARTUP: close failed: {_e}")
+
+                # Re-sync executor so duplicate-buy guard sees empty positions
+                try:
+                    self._executor.update_positions()
+                    self._open_positions = {}
+                    logger.info("[Agent] STARTUP: executor re-synced — open_positions cleared")
+                except Exception as _re:
+                    logger.warning(f"[Agent] STARTUP: re-sync failed: {_re}")
+                    self._open_positions = {}
+
+                # Clear today's fill price cache — without this, AAPL bought at $310
+                # this morning poisons the cache; new buys at $213 get $310 as entry.
+                try:
+                    if hasattr(self._executor, '_today_fills'):
+                        self._executor._today_fills = {}
+                        logger.info("[Agent] STARTUP: fill cache cleared — fresh prices for new buys")
+                except Exception:
+                    pass
+
 
             # Sync today's closed trades from Alpaca into portfolio tracker
             # This catches trades missed when agent was restarted or stop/TP fired
@@ -1072,13 +1119,8 @@ class TradingAgent:
                 self._portfolio.record_trade(trade)
                 injected += 1
                 logger.info(f"[SyncAlpaca] Injected {sym}: ${pnl:+.2f}")
-
-                # Update ticker cooldown counts so session ban reflects real history
-                if hasattr(self, '_ticker_cd'):
-                    if pnl >= 0:
-                        self._ticker_cd.record_win(sym)
-                    else:
-                        self._ticker_cd.record_loss(sym)
+                # Note: cooldowns are rebuilt from ALL today's trades below —
+                # don't call record_loss/win here or it fires duplicate warnings
 
             # Rebuild ticker losses from ALL today's recorded trades
             # This ensures session ban reflects real history after restart
@@ -1090,6 +1132,11 @@ class TradingAgent:
                                  key=lambda x: x.exit_time or ""):
                     et = (t.exit_time or "")[:10]
                     if et != today:
+                        continue
+                    # Skip "Recovered from Alpaca" trades — these are inherited
+                    # positions, not V2's own decisions. Including them poisons
+                    # cooldowns and blocks the best signals on every restart.
+                    if getattr(t, 'exit_reason', '') == 'Recovered from Alpaca':
                         continue
                     sym = t.symbol.upper()
                     if t.pnl < 0:
@@ -1540,7 +1587,11 @@ class TradingAgent:
 
         # Phase 3: Adaptive threshold learning — re-analyse every 5 new trades
         try:
-            trades = self._portfolio._trades
+            # Exclude "Recovered from Alpaca" trades from adaptive learning
+            # They are inherited positions, not V2's own signals — including them
+            # corrupts win rate (27% → floor 3.5) and blocks all future trades
+            trades = [t for t in self._portfolio._trades
+                      if getattr(t, 'exit_reason', '') != 'Recovered from Alpaca']
             if self._adaptive.should_update(len(trades)):
                 rec = self._adaptive.analyse(trades)
                 if rec.confidence >= 0.4:
