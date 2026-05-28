@@ -137,7 +137,7 @@ class AlpacaExecutor:
         if order.status == OrderStatus.SUBMITTED and order.broker_order_id:
             try:
                 import time as _t
-                _t.sleep(1.0)  # paper fills within ~1s
+                _t.sleep(2.0)  # paper fills within ~2s (increased from 1s)
                 _fo = self._client.get_order_by_id(order.broker_order_id)
                 if str(_fo.status).lower() in ('filled', 'partially_filled'):
                     order.status           = OrderStatus.FILLED
@@ -149,6 +149,13 @@ class AlpacaExecutor:
 
         if order.status == OrderStatus.FILLED:
             fill_price = order.filled_avg_price or decision.stop_loss / 0.97
+
+            # Cache fill price so update_positions() can import with correct entry price
+            # Without this, new buys get SKIPPED because _today_fills={} has no entry for them
+            if self._today_fills is not None:
+                self._today_fills[symbol] = fill_price
+            else:
+                self._today_fills = {symbol: fill_price}
 
             # Record position
             self._positions[symbol] = Position(
@@ -318,9 +325,14 @@ class AlpacaExecutor:
                         "https://paper-api.alpaca.markets"
                         if self._paper else "https://api.alpaca.markets"
                     )
-                    _utc_midnight = datetime.now(timezone.utc).replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    # Use PST market open (6:30 AM PST = 13:30 UTC) as cutoff
+                    # UTC midnight includes yesterday's PST fills (e.g. 3:30 PM PST = 10:30 PM UTC)
+                    # which causes stale fill prices to be loaded as "today's" fills
+                    import zoneinfo as _zi
+                    _pst = _zi.ZoneInfo('America/Los_Angeles')
+                    _now_pst = datetime.now(_pst)
+                    _market_open_pst = _now_pst.replace(hour=6, minute=30, second=0, microsecond=0)
+                    _utc_midnight = _market_open_pst.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                     _hdrs = {
                         "APCA-API-KEY-ID":     self._api_key,
                         "APCA-API-SECRET-KEY": self._secret_key,
@@ -365,15 +377,54 @@ class AlpacaExecutor:
                             f"{qty} shares @ ${entry:.2f} (today fill price)"
                         )
                     else:
-                        # No today fill found — this is a position from a previous session.
-                        # Skip it. We cannot know the correct entry price.
-                        # avg_entry_price would be the blended lifetime cost basis = wrong.
-                        logger.warning(
-                            f"[Executor] SKIPPED import {symbol}: "
-                            f"no today fill found, avg_entry=${float(ap.avg_entry_price):.2f} "
-                            f"is lifetime basis — cannot use for P&L"
-                        )
-                        continue
+                        # Not in cache — try fetching from Alpaca orders directly.
+                        # This handles the case where fill poll timed out before confirmation.
+                        try:
+                            import urllib.request as _ur2, json as _j2
+                            from datetime import datetime, timezone
+                            _base2 = ("https://paper-api.alpaca.markets"
+                                      if self._paper else "https://api.alpaca.markets")
+                            # Use PST market open as cutoff, not UTC midnight
+                            import zoneinfo as _zi2
+                            _pst2 = _zi2.ZoneInfo('America/Los_Angeles')
+                            _now2 = datetime.now(_pst2)
+                            _open2 = _now2.replace(hour=6, minute=30, second=0, microsecond=0)
+                            _midnight2 = _open2.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                            _hdrs2 = {"APCA-API-KEY-ID": self._api_key,
+                                      "APCA-API-SECRET-KEY": self._secret_key}
+                            _req2 = _ur2.Request(
+                                f"{_base2}/v2/orders?status=all&after={_midnight2}"
+                                f"&symbols={symbol}&limit=10&direction=desc",
+                                headers=_hdrs2
+                            )
+                            _ords2 = _j2.loads(_ur2.urlopen(_req2, timeout=5).read())
+                            _fill2 = next(
+                                (float(o["filled_avg_price"]) for o in _ords2
+                                 if o.get("side") == "buy"
+                                 and str(o.get("status","")).lower() == "filled"
+                                 and o.get("filled_avg_price")),
+                                None
+                            )
+                            if _fill2:
+                                entry = _fill2
+                                self._today_fills[symbol] = _fill2
+                                logger.info(
+                                    f"[Executor] Imported {symbol} from Alpaca: "
+                                    f"{qty} shares @ ${entry:.2f} (fetched fill price)"
+                                )
+                            else:
+                                logger.warning(
+                                    f"[Executor] SKIPPED import {symbol}: "
+                                    f"no today fill found, avg_entry=${float(ap.avg_entry_price):.2f} "
+                                    f"is lifetime basis — cannot use for P&L"
+                                )
+                                continue
+                        except Exception as _fe2:
+                            logger.warning(
+                                f"[Executor] SKIPPED import {symbol}: "
+                                f"fill lookup failed: {_fe2}"
+                            )
+                            continue
 
                     self._positions[symbol] = Position(
                         symbol        = symbol,

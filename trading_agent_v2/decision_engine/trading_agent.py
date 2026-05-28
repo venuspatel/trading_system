@@ -481,7 +481,7 @@ class TradingAgent:
                 # this morning poisons the cache; new buys at $213 get $310 as entry.
                 try:
                     if hasattr(self._executor, '_today_fills'):
-                        self._executor._today_fills = {}
+                        self._executor._today_fills = None  # Reset to None so fetch re-runs with PST cutoff
                         logger.info("[Agent] STARTUP: fill cache cleared — fresh prices for new buys")
                 except Exception:
                     pass
