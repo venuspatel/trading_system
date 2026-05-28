@@ -407,3 +407,108 @@ curl -X DELETE https://paper-api.alpaca.markets/v2/positions \
 ---
 
 *TradeAgent Project Handoff | May 26, 2026 | Confidential*
+
+---
+
+## 🔥 MAY 27-28 SESSION — V2 FILL CACHE BUG (UNSOLVED)
+
+**Date:** May 27-28, 2026 | **V1:** $1,020,737 | **V2:** ~$988,000 (declining from restarts)
+
+### Root Cause (Fully Diagnosed)
+V2 positions are imported with wrong entry prices → stops fire immediately → -15% to -54% losses.
+
+**The chain:**
+1. Alpaca's `avg_entry_price` is a **lifetime blended cost basis** (e.g. AAPL=$310 from months ago, not today's $213)
+2. A `_today_fills` cache was built to use actual fill prices instead
+3. The cache uses `after=UTC_midnight` to fetch today's fills — but PST sessions from 6:30 AM-1 PM PST fall **before** UTC midnight of the next day, so yesterday's fills get included
+4. Startup guard sets `_today_fills = {}` to force a re-fetch — but `{}` vs `None` sentinel broke: `if self._today_fills is None` is False for `{}`, so the fetch is **skipped**
+5. New buys come in, fallback fetch runs — but it finds yesterday's fills because the time window is wrong
+
+### What Was Fixed (Committed to GitHub — commit 35dc49c + subsequent)
+All in `trading_agent_v2/`:
+
+| Fix | File | Status |
+|---|---|---|
+| Startup guard: poll until Alpaca empty | trading_agent.py | ✅ Working |
+| TickerCooldown skips Recovered trades | trading_agent.py | ✅ Working |
+| Adaptive threshold skips Recovered trades | trading_agent.py | ✅ Working |
+| Regime cap for Micro Momentum (2.5→1.8) | engine.py | ✅ Working |
+| ADX floor lowered (20→12) | engine.py | ✅ Working |
+| NEUTRAL bypass for Micro Momentum | engine.py | ✅ Working |
+| Fill poll after buy (1s→2s) | alpaca_executor.py | ✅ Working |
+| Fallback fill fetch when cache miss | alpaca_executor.py | ✅ Working |
+| Fill cache after buy confirmed | alpaca_executor.py | ✅ Working |
+
+### What Is Still Broken
+**`_today_fills` sentinel + time window** — the two-part fix needed:
+
+**Part 1 — `trading_agent.py` L484:**
+```python
+# WRONG (currently in file):
+self._executor._today_fills = {}
+
+# CORRECT (sets to None so fetch re-runs):
+self._executor._today_fills = None
+```
+
+**Part 2 — `alpaca_executor.py` date cutoff (both in initial fetch L328 and fallback fetch L~400):**
+```python
+# WRONG (currently): UTC midnight — includes yesterday's PST fills
+_utc_midnight = datetime.now(timezone.utc).replace(hour=0, ...).strftime(...)
+
+# CORRECT: PST market open = 6:30 AM PST = 13:30 UTC
+import zoneinfo
+_pst = zoneinfo.ZoneInfo('America/Los_Angeles')
+_now_pst = datetime.now(_pst)
+_market_open_pst = _now_pst.replace(hour=6, minute=30, second=0, microsecond=0)
+_utc_cutoff = _market_open_pst.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+```
+
+### Verify Fixes Are In Files
+```bash
+# Check Part 1 — should show None not {}
+grep -n "_today_fills" \
+  ~/Desktop/trading_system/trading_agent_v2/decision_engine/trading_agent.py
+
+# Check Part 2 — should show 'PST market open' or 'hour=6'
+grep -n "PST market open\|hour=6\|zoneinfo" \
+  ~/Desktop/trading_system/trading_agent_v2/execution/alpaca_executor.py
+```
+
+### Correct Startup Log (when fixed)
+```
+[Executor] Today's fill prices loaded: []          ← empty, no stale yesterday fills
+[Agent] STARTUP: closing N positions — starting fresh
+[Agent] STARTUP: positions confirmed empty after Xs
+[Agent] STARTUP: fill cache cleared — fresh prices for new buys
+[Executor] Imported AVGO from Alpaca: 300sh @ $280.xx (today fill price)  ← correct price
+[TrailingStop] Registered AVGO @ $280.xx | stop=$279.xx                   ← correct stop
+```
+
+### V2 Current State
+- Equity: ~$988,000 (losses entirely from restart chaos, not bad trades)
+- All fixes committed EXCEPT the two-part sentinel+time fix above
+- Stop V2, apply both parts, restart clean
+
+### Emergency Commands
+```bash
+# Stop V2 + close all positions
+lsof -ti:8001,3001 | xargs kill -9 2>/dev/null
+curl -s -X DELETE "https://paper-api.alpaca.markets/v2/positions" \
+  -H 'APCA-API-KEY-ID: PKP3WTGVDUYTDCYW5VDW3Z3CMZ' \
+  -H 'APCA-API-SECRET-KEY: HnMPyPA2haqsGJamiM5HLnPQF2TGx8g8Si7qNLxs4YZm'
+
+# Reset portfolio
+python3 -c "
+import json, datetime
+path = '/Users/venuspatel/Desktop/trading_system/trading_agent_v2/logs/portfolio.json'
+with open(path, 'w') as f:
+    json.dump({'starting_value': 988000.0, 'historical_pnl_offset': 0.0,
+               'peak_value': 988000.0, 'day_date': datetime.date.today().strftime('%Y-%m-%d'),
+               'day_start_pnl': 0.0, 'trades': [], 'snapshots': []}, f, indent=2)
+print('Reset done')
+"
+```
+
+### V1 Status
+Running cleanly — $1,020,737 (+$20,737). No changes needed.
