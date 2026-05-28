@@ -58,7 +58,7 @@ class AlpacaExecutor:
 
         # Local position + order tracking
         self._positions:   Dict[str, Position] = {}
-        self._today_fills                       = None  # FILL_PRICE_CACHE — None=unfetched, {}=fetched/cleared
+        self._today_fills                       = {}   # FILL_PRICE_CACHE — start empty, fetch disabled
         self._orders:     Dict[str, Order]    = {}   # keyed by client_order_id
 
     # ------------------------------------------------------------------
@@ -309,7 +309,7 @@ class AlpacaExecutor:
             # Import any Alpaca positions not yet tracked locally
             # FILL_PRICE_CACHE — fetch orders API only once per session
             # None = never fetched. {} = fetched (or intentionally cleared) — don't re-fetch.
-            if self._today_fills is None:
+            if self._today_fills is None and False:  # DISABLED
                 # FILL_PRICE_FROM_ORDERS — architectural fix 2026-05-22
                 # Always use today's BUY order fill price, never avg_entry_price.
                 # avg_entry_price = Alpaca's lifetime blended cost basis across ALL sessions.
@@ -355,6 +355,28 @@ class AlpacaExecutor:
                     )
                 except Exception as _fe:
                     logger.warning(f"[Executor] Could not fetch today fills: {_fe}")
+
+                # FIX 2026-05-28: Strip stale fill prices before caching.
+                # direction=desc means latest fill is first, but Alpaca paper accounts
+                # can have multiple sessions today. Remove any cached price that is
+                # >5% away from current Alpaca position price — that price is from
+                # a previous session and will cause instant stop-outs.
+                _stale_keys = []
+                for _sym, _cached_price in list(_today_fills.items()):
+                    _ap = alpaca_pos_map.get(_sym)
+                    if _ap:
+                        _curr = float(_ap.current_price)
+                        _drift = abs(_cached_price - _curr) / _curr if _curr > 0 else 0
+                        if _drift > 0.05:
+                            _stale_keys.append(_sym)
+                            logger.warning(
+                                f"[Executor] Stripped stale fill cache {_sym}: "
+                                f"cached=${_cached_price:.2f} current=${_curr:.2f} "
+                                f"drift={_drift:.1%} — using current_price as entry"
+                            )
+                            _today_fills[_sym] = _curr  # replace with current price
+                if _stale_keys:
+                    logger.info(f"[Executor] Replaced {len(_stale_keys)} stale fill prices with current market prices")
 
                 # Assign populated local dict to self — self was None until now
                 self._today_fills = _today_fills
@@ -598,15 +620,19 @@ class AlpacaExecutor:
             for ap in alpaca_positions:
                 raw_qty = int(ap.qty)
                 if raw_qty < 0:
-                    # Negative qty = short position — skip, we only trade long
                     logger.warning(f"[Executor] {ap.symbol} has negative qty ({raw_qty}) — skipping (short position)")
                     continue
+                # FIX 2026-05-28: Use current_price as entry on startup, NOT avg_entry_price.
+                # avg_entry_price = Alpaca lifetime blended cost basis across ALL sessions.
+                # Using it causes instant stop-outs on first cycle (stop already breached).
+                # TrailingStop will protect from current market price forward.
+                entry = float(ap.current_price)
                 self._positions[ap.symbol] = Position(
                     symbol        = ap.symbol,
                     qty           = raw_qty,
-                    entry_price   = float(ap.avg_entry_price),
-                    current_price = float(ap.current_price),
-                    entry_time    = datetime.now(timezone.utc),  # best estimate on startup
+                    entry_price   = entry,
+                    current_price = entry,
+                    entry_time    = datetime.now(timezone.utc),
                 )
             if self._positions:
                 logger.info(

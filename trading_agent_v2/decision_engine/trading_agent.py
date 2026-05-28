@@ -418,73 +418,17 @@ class TradingAgent:
                 for sym, pos in self._executor.open_positions.items()
             }
 
-            # Startup guard: close ALL pre-existing positions on restart
-            # V2 Micro Momentum is a pure intraday strategy — every session starts fresh.
-            # Keeping positions across restarts causes stale cost-basis stops to fire
-            # immediately (-15% to -48% losses on first cycle). Always start clean.
-            if self._open_positions:
-                logger.warning(
-                    f"[Agent] STARTUP: closing {len(self._open_positions)} pre-existing "
-                    f"positions {list(self._open_positions.keys())} — starting fresh"
-                )
-                try:
-                    import urllib.request as _ur
-                    import time as _time
-                    from config import cfg as _cfg
-                    _hdrs = {
-                        "APCA-API-KEY-ID":     _cfg.alpaca_api_key,
-                        "APCA-API-SECRET-KEY": _cfg.alpaca_secret_key,
-                    }
-                    _base = "https://paper-api.alpaca.markets/v2"
-
-                    # Send close-all request
-                    _req = _ur.Request(f"{_base}/positions", headers=_hdrs, method="DELETE")
-                    _ur.urlopen(_req, timeout=10)
-                    logger.info("[Agent] STARTUP: DELETE /positions sent — waiting for settlement")
-
-                    # Poll until Alpaca confirms all positions are closed (max 10s)
-                    for _attempt in range(10):
-                        _time.sleep(1.0)
-                        try:
-                            _poll_req = _ur.Request(f"{_base}/positions", headers=_hdrs)
-                            _remaining = __import__('json').loads(
-                                _ur.urlopen(_poll_req, timeout=5).read()
-                            )
-                            if not _remaining:
-                                logger.info(
-                                    f"[Agent] STARTUP: positions confirmed empty "
-                                    f"after {_attempt+1}s — safe to proceed"
-                                )
-                                break
-                            logger.debug(
-                                f"[Agent] STARTUP: {len(_remaining)} positions still settling "
-                                f"({[p['symbol'] for p in _remaining]}) — waiting..."
-                            )
-                        except Exception as _pe:
-                            logger.debug(f"[Agent] STARTUP: poll error: {_pe}")
-                    else:
-                        logger.warning("[Agent] STARTUP: positions may not have settled after 10s — proceeding anyway")
-
-                except Exception as _e:
-                    logger.warning(f"[Agent] STARTUP: close failed: {_e}")
-
-                # Re-sync executor so duplicate-buy guard sees empty positions
-                try:
-                    self._executor.update_positions()
-                    self._open_positions = {}
-                    logger.info("[Agent] STARTUP: executor re-synced — open_positions cleared")
-                except Exception as _re:
-                    logger.warning(f"[Agent] STARTUP: re-sync failed: {_re}")
-                    self._open_positions = {}
-
-                # Clear today's fill price cache — without this, AAPL bought at $310
-                # this morning poisons the cache; new buys at $213 get $310 as entry.
-                try:
-                    if hasattr(self._executor, '_today_fills'):
-                        self._executor._today_fills = None  # Reset to None so fetch re-runs with PST cutoff
-                        logger.info("[Agent] STARTUP: fill cache cleared — fresh prices for new buys")
-                except Exception:
-                    pass
+            # Startup guard: reset fill cache so stale prices don't poison new buys.
+            # Previously this closed all positions on restart — removed 2026-05-28
+            # because TrailingStop now registers at current market price, making
+            # the wipe unnecessary. Closing positions on every hot-reload was
+            # causing 14 orders of slippage per restart.
+            try:
+                if hasattr(self._executor, '_today_fills'):
+                    self._executor._today_fills = None
+                    logger.info("[Agent] STARTUP: fill cache cleared — fresh prices for new buys")
+            except Exception:
+                pass
 
 
             # Sync today's closed trades from Alpaca into portfolio tracker
@@ -590,7 +534,7 @@ class TradingAgent:
                 logger.warning(f"[Agent] Trade sync from Alpaca failed: {_te}")
             registered = 0
             for sym, pos in self._executor.open_positions.items():
-                ep = pos.entry_price or pos.current_price or 0
+                ep = pos.current_price or pos.entry_price or 0
                 cp = pos.current_price or ep  # live price
                 if ep <= 0:
                     logger.warning(f"[Agent] {sym}: entry_price=0 — skipping trailing stop registration")
