@@ -339,7 +339,7 @@ class AlpacaExecutor:
                     }
                     _req = _ur.Request(
                         f"{_base_url}/v2/orders"
-                        f"?status=all&after={_utc_midnight}&limit=200&direction=asc",
+                        f"?status=all&after={_utc_midnight}&limit=200&direction=desc",
                         headers=_hdrs
                     )
                     _orders = _json.loads(_ur.urlopen(_req, timeout=8).read())
@@ -644,3 +644,4 @@ class AlpacaExecutor:
     @property
     def is_paper(self) -> bool:
         return self._paper
+
