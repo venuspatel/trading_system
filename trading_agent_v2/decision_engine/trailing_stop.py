@@ -157,10 +157,16 @@ class TrailingStopManager:
                 _ep_drift = abs(price - ep) / ep if ep > 0 else 0
                 if _ep_drift > 0.03:  # current price > 3% from entry = stale
                     logger.warning(
-                        f"[TrailingStop] SKIPPED stale auto-register {symbol}: "
-                        f"entry=${ep:.2f} market=${price:.2f} drift={_ep_drift:.1%}"
+                        f"[TrailingStop] Stale entry for {symbol}: "
+                        f"entry=${ep:.2f} market=${price:.2f} drift={_ep_drift:.1%} "
+                        f"— registering at market price to protect position"
                     )
-                    continue
+                    # FIX 2026-05-28: Don't skip — register at current market price.
+                    # Skipping = zero stop protection. Registering at market price
+                    # = 0.25% stop from RIGHT NOW, which is always safer than nothing.
+                    ep = price  # protect from current price forward
+                    sl = ep * (1 - self.config.stop_loss_pct)
+                    tp = ep * (1 + self.config.take_profit_pct)
                 self.register_position(
                     symbol      = symbol,
                     entry_price = ep,
@@ -347,3 +353,4 @@ class TrailingStopManager:
             }
             for s in self._states.values()
         ]
+
