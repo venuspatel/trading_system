@@ -1041,7 +1041,15 @@ class TradingAgent:
 
                 b_list = buys[sym]
                 s_list = sells[sym]
-                avg_buy  = sum(p*q for q,p,_ in b_list) / sum(q for q,p,_ in b_list)
+
+                # FIX 2026-05-29: Only match buys that happened BEFORE the last sell.
+                # Post-sell buys are a new position — including them corrupts avg_buy.
+                last_sell_ts = max(t for _,_,t in s_list)
+                b_list_before = [(q,p,t) for q,p,t in b_list if t <= last_sell_ts]
+                if not b_list_before:
+                    logger.warning(f"[SyncAlpaca] SKIPPED {sym}: no buys before last sell")
+                    continue
+                avg_buy  = sum(p*q for q,p,_ in b_list_before) / sum(q for q,p,_ in b_list_before)
                 avg_sell = sum(p*q for q,p,_ in s_list) / sum(q for q,p,_ in s_list)
                 qty_sold = sum(q for q,p,_ in s_list)
                 pnl      = (avg_sell - avg_buy) * qty_sold
@@ -1417,7 +1425,12 @@ class TradingAgent:
                     try:
                         # Snapshot position BEFORE close for P&L calculation
                         pos = self._executor.open_positions.get(sig.symbol)
-                        entry_price = pos.entry_price if pos else 0
+                        # FIX 2026-05-29: Use today's actual fill price from _today_fills cache.
+                        # Priority: 1) today's fill price, 2) current market price, 3) entry_price
+                        _fills = getattr(self._executor, '_today_fills', {}) or {}
+                        entry_price = (_fills.get(sig.symbol.upper()) 
+                                      or (pos.current_price if pos else 0) 
+                                      or (pos.entry_price if pos else 0))
                         entry_qty   = abs(pos.qty)    if pos else 0  # abs() prevents negative qty inflating P&L
                         entry_time  = getattr(pos, "entry_time", None) or scan_start.isoformat()
 
