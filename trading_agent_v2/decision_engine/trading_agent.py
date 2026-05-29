@@ -993,8 +993,15 @@ class TradingAgent:
 
             base = "https://paper-api.alpaca.markets" if getattr(self._executor, '_paper', True) else "https://api.alpaca.markets"
 
+            # FIX 2026-05-29: Add after= filter so we only fetch TODAY's orders.
+            # Without it, yesterday's sells get matched against today's buys,
+            # causing phantom P&L (AMD sell $512 matched with today's buy $154).
+            import zoneinfo as _zi
+            _pst = _zi.ZoneInfo('America/Los_Angeles')
+            _today_open = datetime.now(_pst).replace(hour=6, minute=30, second=0, microsecond=0)
+            _after = _today_open.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             req = _ur.Request(
-                f"{base}/v2/orders?status=closed&limit=50&direction=desc",
+                f"{base}/v2/orders?status=closed&after={_after}&limit=200&direction=asc",
                 headers={"APCA-API-KEY-ID": KEY, "APCA-API-SECRET-KEY": SEC}
             )
             orders = _json.loads(_ur.urlopen(req, timeout=8).read())
