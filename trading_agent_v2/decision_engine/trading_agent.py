@@ -425,7 +425,7 @@ class TradingAgent:
             # causing 14 orders of slippage per restart.
             try:
                 if hasattr(self._executor, '_today_fills'):
-                    self._executor._today_fills = None
+                    self._executor._today_fills = {}
                     logger.info("[Agent] STARTUP: fill cache cleared — fresh prices for new buys")
             except Exception:
                 pass

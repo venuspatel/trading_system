@@ -399,55 +399,15 @@ class AlpacaExecutor:
                             f"{qty} shares @ ${entry:.2f} (today fill price)"
                         )
                     else:
-                        # Not in cache — try fetching from Alpaca orders directly.
-                        # This handles the case where fill poll timed out before confirmation.
-                        try:
-                            import urllib.request as _ur2, json as _j2
-                            from datetime import datetime, timezone
-                            _base2 = ("https://paper-api.alpaca.markets"
-                                      if self._paper else "https://api.alpaca.markets")
-                            # Use PST market open as cutoff, not UTC midnight
-                            import zoneinfo as _zi2
-                            _pst2 = _zi2.ZoneInfo('America/Los_Angeles')
-                            _now2 = datetime.now(_pst2)
-                            _open2 = _now2.replace(hour=6, minute=30, second=0, microsecond=0)
-                            _midnight2 = _open2.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-                            _hdrs2 = {"APCA-API-KEY-ID": self._api_key,
-                                      "APCA-API-SECRET-KEY": self._secret_key}
-                            _req2 = _ur2.Request(
-                                f"{_base2}/v2/orders?status=all&after={_midnight2}"
-                                f"&symbols={symbol}&limit=10&direction=desc",
-                                headers=_hdrs2
-                            )
-                            _ords2 = _j2.loads(_ur2.urlopen(_req2, timeout=5).read())
-                            _fill2 = next(
-                                (float(o["filled_avg_price"]) for o in _ords2
-                                 if o.get("side") == "buy"
-                                 and str(o.get("status","")).lower() == "filled"
-                                 and o.get("filled_avg_price")),
-                                None
-                            )
-                            if _fill2:
-                                entry = _fill2
-                                self._today_fills[symbol] = _fill2
-                                logger.info(
-                                    f"[Executor] Imported {symbol} from Alpaca: "
-                                    f"{qty} shares @ ${entry:.2f} (fetched fill price)"
-                                )
-                            else:
-                                logger.warning(
-                                    f"[Executor] SKIPPED import {symbol}: "
-                                    f"no today fill found, avg_entry=${float(ap.avg_entry_price):.2f} "
-                                    f"is lifetime basis — cannot use for P&L"
-                                )
-                                continue
-                        except Exception as _fe2:
-                            logger.warning(
-                                f"[Executor] SKIPPED import {symbol}: "
-                                f"fill lookup failed: {_fe2}"
-                            )
-                            continue
-
+                        # FIX 2026-05-29: Don't fetch from Alpaca orders API per-import.
+                        # That causes 429 rate limit spam on every cycle.
+                        # Just use current_price as entry — TrailingStop will protect from here.
+                        entry = curr
+                        logger.info(
+                            f"[Executor] Imported {symbol} from Alpaca: "
+                            f"{qty} shares @ ${entry:.2f} (current market price)"
+                        )
+                        self._today_fills[symbol] = entry
                     self._positions[symbol] = Position(
                         symbol        = symbol,
                         qty           = qty,
