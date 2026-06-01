@@ -795,13 +795,7 @@ class TradingAgent:
         # Phase B: 3:45 PM — smart close (skip positions flagged for overnight hold)
         if scan_type == "INTRADAY_CLOSE":
             self._smart_close(reason="Intraday auto-close at 3:45 PM ET")
-<<<<<<< HEAD
             # FIX 2026-06-01: Hard force-close + portfolio reset for Micro Momentum
-=======
-            # FIX 2026-06-01: Hard force-close via Alpaca API for Micro Momentum
-            # This is a safety net in case _smart_close misses any positions.
-            # Overnight positions cause stale avg_entry_price contamination on restart.
->>>>>>> b34511f6636fa2d8c6903a4ebfa6c16adc00beca
             _approach = getattr(self.config, 'approach', '')
             _approach_str = _approach.value if hasattr(_approach, 'value') else str(_approach)
             if 'micro' in _approach_str.lower() or 'momentum' in _approach_str.lower():
@@ -817,10 +811,6 @@ class TradingAgent:
                     )
                     _ur.urlopen(_req, timeout=10)
                     logger.info("[Agent] EOD FORCE-CLOSE: all V2 positions closed via Alpaca API")
-<<<<<<< HEAD
-=======
-                    # Also reset portfolio.json so tomorrow starts with clean P&L tracking
->>>>>>> b34511f6636fa2d8c6903a4ebfa6c16adc00beca
                     try:
                         import json as _json, os as _os
                         _port_path = _os.path.join(
@@ -909,18 +899,10 @@ class TradingAgent:
 
     def _smart_close(self, reason: str = "Smart close"):
         """Phase B: 3:45 PM — close only positions NOT flagged for overnight hold.
-<<<<<<< HEAD
         FIX 2026-06-01: Micro Momentum ALWAYS closes all positions EOD.
         Overnight positions cause stale avg_entry_price contamination on restart.
         """
         positions  = dict(self._executor.open_positions)
-=======
-        FIX 2026-06-01: For Micro Momentum, ALWAYS close all positions EOD.
-        Overnight positions cause stale avg_entry_price contamination on restart.
-        """
-        positions  = dict(self._executor.open_positions)
-        # Micro Momentum never holds overnight — scalping strategy
->>>>>>> b34511f6636fa2d8c6903a4ebfa6c16adc00beca
         _approach = getattr(self.config, 'approach', '')
         _approach_str = _approach.value if hasattr(_approach, 'value') else str(_approach)
         if 'micro' in _approach_str.lower() or 'momentum' in _approach_str.lower():
