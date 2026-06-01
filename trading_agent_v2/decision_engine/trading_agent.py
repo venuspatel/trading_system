@@ -795,6 +795,41 @@ class TradingAgent:
         # Phase B: 3:45 PM — smart close (skip positions flagged for overnight hold)
         if scan_type == "INTRADAY_CLOSE":
             self._smart_close(reason="Intraday auto-close at 3:45 PM ET")
+            # FIX 2026-06-01: Hard force-close via Alpaca API for Micro Momentum
+            # This is a safety net in case _smart_close misses any positions.
+            # Overnight positions cause stale avg_entry_price contamination on restart.
+            _approach = getattr(self.config, 'approach', '')
+            _approach_str = _approach.value if hasattr(_approach, 'value') else str(_approach)
+            if 'micro' in _approach_str.lower() or 'momentum' in _approach_str.lower():
+                try:
+                    import urllib.request as _ur
+                    _base = "https://paper-api.alpaca.markets" if getattr(self._executor, '_paper', True) else "https://api.alpaca.markets"
+                    _key  = getattr(self._executor, '_api_key', '')
+                    _sec  = getattr(self._executor, '_secret_key', '')
+                    _req  = _ur.Request(
+                        f"{_base}/v2/positions",
+                        method="DELETE",
+                        headers={"APCA-API-KEY-ID": _key, "APCA-API-SECRET-KEY": _sec}
+                    )
+                    _ur.urlopen(_req, timeout=10)
+                    logger.info("[Agent] EOD FORCE-CLOSE: all V2 positions closed via Alpaca API")
+                    # Also reset portfolio.json so tomorrow starts with clean P&L tracking
+                    try:
+                        import json as _json, os as _os
+                        _port_path = _os.path.join(
+                            _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                            "logs", "portfolio.json"
+                        )
+                        with open(_port_path, 'w') as _pf:
+                            _json.dump({
+                                'trades': [], 'snapshots': [],
+                                'session_start_pnl': 0.0, 'total_pnl': 0.0, 'version': 2
+                            }, _pf)
+                        logger.info("[Agent] EOD RESET: portfolio.json cleared for clean tomorrow start")
+                    except Exception as _pr:
+                        logger.warning(f"[Agent] EOD portfolio reset failed: {_pr}")
+                except Exception as _eod_err:
+                    logger.warning(f"[Agent] EOD force-close failed: {_eod_err}")
             return
         # Prevent concurrent scans — skip if one is already running
         if not self._scan_lock.acquire(blocking=False):
@@ -866,9 +901,18 @@ class TradingAgent:
         )
 
     def _smart_close(self, reason: str = "Smart close"):
-        """Phase B: 3:45 PM — close only positions NOT flagged for overnight hold."""
+        """Phase B: 3:45 PM — close only positions NOT flagged for overnight hold.
+        FIX 2026-06-01: For Micro Momentum, ALWAYS close all positions EOD.
+        Overnight positions cause stale avg_entry_price contamination on restart.
+        """
         positions  = dict(self._executor.open_positions)
-        hold_syms  = set(self._hold_overnight.keys())
+        # Micro Momentum never holds overnight — scalping strategy
+        _approach = getattr(self.config, 'approach', '')
+        _approach_str = _approach.value if hasattr(_approach, 'value') else str(_approach)
+        if 'micro' in _approach_str.lower() or 'momentum' in _approach_str.lower():
+            hold_syms = set()  # Force close ALL for micro momentum
+        else:
+            hold_syms  = set(self._hold_overnight.keys())
         to_close   = [s for s in positions if s not in hold_syms]
 
         if not to_close:
