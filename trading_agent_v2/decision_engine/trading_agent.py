@@ -1025,6 +1025,17 @@ class TradingAgent:
             from datetime import datetime, timezone, timedelta
             from execution.portfolio_tracker import ClosedTrade
 
+            # FIX 2026-06-02: Skip SyncAlpaca after market close
+            # EOD reset clears portfolio.json at 3:30 PM ET — if we sync after that
+            # we immediately re-write today's trades back, defeating the reset.
+            # Tomorrow morning starts fresh with zero positions so there's nothing to sync.
+            import zoneinfo as _zi
+            _et_now = datetime.now(_zi.ZoneInfo('America/New_York'))
+            _mkt_closed = (_et_now.hour > 16) or (_et_now.hour == 16 and _et_now.minute >= 5)
+            if _mkt_closed:
+                logger.info("[SyncAlpaca] Market closed — skipping sync to preserve EOD reset")
+                return
+
             KEY = getattr(self._executor, '_api_key', '') or getattr(self._executor, 'api_key', '')
             SEC = getattr(self._executor, '_secret_key', '') or getattr(self._executor, 'secret_key', '')
             if not KEY or not SEC:
