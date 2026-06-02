@@ -514,7 +514,10 @@ class PortfolioTracker:
     # Data integrity
     # ------------------------------------------------------------------
 
-    def clean_bad_trades(self, max_single_pnl: float = 500.0) -> int:
+    def clean_bad_trades(self, max_single_pnl: float = 50000.0) -> int:
+        # FIX 2026-06-02: Raised from $500 to $50,000
+        # $500 was filtering out legitimate trades like AMZN +$2,735, SOFI +$5,800
+        # $50,000 still catches phantom losses like AAPL -$33,000 from stale prices
         before = len(self._trades)
         self._trades = [
             t for t in self._trades

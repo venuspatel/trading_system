@@ -817,12 +817,23 @@ class TradingAgent:
                             _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
                             "logs", "portfolio.json"
                         )
+                        # FIX 2026-06-02: Preserve trade history, only reset P&L counters
+                        # Trades window should always show history — clearing it loses all records
+                        try:
+                            with open(_port_path, 'r') as _rf:
+                                _existing = _json.load(_rf)
+                            _kept_trades = _existing.get('trades', [])
+                        except Exception:
+                            _kept_trades = []
                         with open(_port_path, 'w') as _pf:
                             _json.dump({
-                                'trades': [], 'snapshots': [],
-                                'session_start_pnl': 0.0, 'total_pnl': 0.0, 'version': 2
+                                'trades': _kept_trades,
+                                'snapshots': [],
+                                'session_start_pnl': 0.0,
+                                'total_pnl': sum(t.get('pnl', 0) for t in _kept_trades),
+                                'version': 2
                             }, _pf)
-                        logger.info("[Agent] EOD RESET: portfolio.json cleared for clean tomorrow start")
+                        logger.info(f"[Agent] EOD RESET: P&L counters reset, {len(_kept_trades)} trades preserved for history")
                         # Write sentinel so next same-day restart skips SyncAlpaca
                         try:
                             import zoneinfo as _zi
