@@ -1060,6 +1060,22 @@ class TradingAgent:
                     else:
                         _os2.remove(_sentinel_path)
                         logger.info("[SyncAlpaca] New day — EOD sentinel cleared, syncing normally")
+                        # Inject yesterday's trades for dashboard history
+                        try:
+                            import datetime as _dt2
+                            _yest = _et_now.date() - _dt2.timedelta(days=1)
+                            while _yest.weekday() >= 5:
+                                _yest -= _dt2.timedelta(days=1)
+                            _yest_str = str(_yest)
+                            _yest_in_port = any(
+                                (t.exit_time or "")[:10] == _yest_str
+                                for t in self._portfolio._trades
+                            )
+                            if not _yest_in_port:
+                                logger.info(f"[SyncAlpaca] Injecting yesterday ({_yest_str}) trades for history")
+                                self._sync_history_from_alpaca(_yest_str)
+                        except Exception as _yhe:
+                            logger.warning(f"[SyncAlpaca] Yesterday history failed: {_yhe}")
             except Exception:
                 pass  # If sentinel check fails, proceed with sync normally
 
@@ -1191,6 +1207,80 @@ class TradingAgent:
             import traceback
             logger.warning(f"[SyncAlpaca] Sync failed: {e}")
             logger.debug(traceback.format_exc())
+
+    def _sync_history_from_alpaca(self, date_str: str):
+        """Inject a past day's closed trades into portfolio for dashboard history."""
+        try:
+            import urllib.request as _ur, json as _json
+            from datetime import datetime, timezone, timedelta
+            import zoneinfo as _zi
+            from execution.portfolio_tracker import ClosedTrade
+
+            KEY = getattr(self._executor, '_api_key', '') or getattr(self._executor, 'api_key', '')
+            SEC = getattr(self._executor, '_secret_key', '') or getattr(self._executor, 'secret_key', '')
+            if not KEY or not SEC:
+                return
+
+            base = "https://paper-api.alpaca.markets" if getattr(self._executor, '_paper', True) else "https://api.alpaca.markets"
+
+            _day_open  = f"{date_str}T09:30:00Z"
+            _day_close = f"{date_str}T20:00:00Z"
+            req = _ur.Request(
+                f"{base}/v2/orders?status=closed&after={_day_open}&until={_day_close}&limit=500&direction=asc",
+                headers={"APCA-API-KEY-ID": KEY, "APCA-API-SECRET-KEY": SEC}
+            )
+            orders = _json.loads(_ur.urlopen(req, timeout=8).read())
+
+            buys = {}; sells = {}
+            for o in orders:
+                filled_at = (o.get("filled_at") or "")[:10]
+                if filled_at != date_str:
+                    continue
+                sym   = o.get("symbol","").upper()
+                price = float(o.get("filled_avg_price") or 0)
+                qty   = int(o.get("filled_qty") or 0)
+                side  = o.get("side","")
+                ts    = o.get("filled_at","")
+                if side == "buy":
+                    buys.setdefault(sym, []).append((qty, price, ts))
+                else:
+                    sells.setdefault(sym, []).append((qty, price, ts))
+
+            injected = 0
+            for sym in sells:
+                if sym not in buys:
+                    continue
+                s_list = sells[sym]
+                b_list = buys[sym]
+                last_sell_ts = max(t for _,_,t in s_list)
+                b_list_before = [(q,p,t) for q,p,t in b_list if t <= last_sell_ts]
+                if not b_list_before:
+                    continue
+                avg_buy  = sum(p*q for q,p,_ in b_list_before) / sum(q for q,p,_ in b_list_before)
+                avg_sell = sum(p*q for q,p,_ in s_list) / sum(q for q,p,_ in s_list)
+                qty_sold = sum(q for q,p,_ in s_list)
+                pnl      = (avg_sell - avg_buy) * qty_sold
+                if avg_buy > 0 and abs(avg_sell - avg_buy) / avg_buy > 0.03:
+                    continue
+                trade = ClosedTrade(
+                    symbol      = sym,
+                    entry_price = round(avg_buy, 4),
+                    exit_price  = round(avg_sell, 4),
+                    qty         = qty_sold,
+                    entry_time  = min(t for _,_,t in b_list_before),
+                    exit_time   = max(t for _,_,t in s_list),
+                    pnl         = round(pnl, 2),
+                    pnl_pct     = round((avg_sell - avg_buy) / avg_buy, 4) if avg_buy > 0 else 0,
+                    exit_reason = "Recovered from Alpaca",
+                    approach    = "Micro Momentum",
+                )
+                self._portfolio.record_trade(trade)
+                injected += 1
+
+            if injected:
+                logger.info(f"[SyncAlpaca] Injected {injected} historical trades for {date_str}")
+        except Exception as e:
+            logger.warning(f"[SyncAlpaca] History sync failed for {date_str}: {e}")
 
     def _scan_cycle(self, scan_type: str = 'EOD'):
         """One complete scan: fetch → analyse → decide → (execute in Layer 5)."""
