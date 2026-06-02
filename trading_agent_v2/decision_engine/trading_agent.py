@@ -823,6 +823,20 @@ class TradingAgent:
                                 'session_start_pnl': 0.0, 'total_pnl': 0.0, 'version': 2
                             }, _pf)
                         logger.info("[Agent] EOD RESET: portfolio.json cleared for clean tomorrow start")
+                        # Write sentinel so next same-day restart skips SyncAlpaca
+                        try:
+                            import zoneinfo as _zi
+                            _sentinel = _os.path.join(
+                                _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                "logs", "eod_reset_done.flag"
+                            )
+                            with open(_sentinel, 'w') as _sf:
+                                _sf.write(_json.dumps({
+                                    "reset_date": str(datetime.now(_zi.ZoneInfo('America/New_York')).date())
+                                }))
+                            logger.info("[Agent] EOD sentinel written — SyncAlpaca will skip on next restart today")
+                        except Exception as _se:
+                            logger.warning(f"[Agent] EOD sentinel write failed: {_se}")
                     except Exception as _pr:
                         logger.warning(f"[Agent] EOD portfolio reset failed: {_pr}")
                 except Exception as _eod_err:
@@ -1024,6 +1038,30 @@ class TradingAgent:
             import urllib.request as _ur, json as _json
             from datetime import datetime, timezone, timedelta
             from execution.portfolio_tracker import ClosedTrade
+
+            # FIX 2026-06-02: Sentinel-based SyncAlpaca skip
+            # EOD reset writes eod_reset_done.flag with today's date.
+            # Same-day restart → skip sync (preserve clean portfolio.json).
+            # Next morning → flag has yesterday's date → delete it, sync normally.
+            try:
+                import zoneinfo as _zi2, os as _os2, json as _jj2
+                _et_now = datetime.now(_zi2.ZoneInfo('America/New_York'))
+                _sentinel_path = _os2.path.join(
+                    _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))),
+                    "logs", "eod_reset_done.flag"
+                )
+                if _os2.path.exists(_sentinel_path):
+                    _flag = _jj2.loads(open(_sentinel_path).read())
+                    _flag_date = _flag.get("reset_date", "")
+                    _today_str = str(_et_now.date())
+                    if _flag_date == _today_str:
+                        logger.info("[SyncAlpaca] EOD reset done today — skipping sync to preserve clean state")
+                        return
+                    else:
+                        _os2.remove(_sentinel_path)
+                        logger.info("[SyncAlpaca] New day — EOD sentinel cleared, syncing normally")
+            except Exception:
+                pass  # If sentinel check fails, proceed with sync normally
 
             KEY = getattr(self._executor, '_api_key', '') or getattr(self._executor, 'api_key', '')
             SEC = getattr(self._executor, '_secret_key', '') or getattr(self._executor, 'secret_key', '')
@@ -1468,7 +1506,15 @@ class TradingAgent:
                         # FIX 2026-05-29: Use today's actual fill price from _today_fills cache.
                         # Priority: 1) today's fill price, 2) current market price, 3) entry_price
                         _fills = getattr(self._executor, '_today_fills', {}) or {}
-                        entry_price = (_fills.get(sig.symbol.upper()) 
+                        _fill_price = _fills.get(sig.symbol.upper(), 0)
+                        _exit_price_est = sig.price or 0
+                        # FIX 2026-06-02: If fill price is stale (>5% from exit), use current_price
+                        # This handles imported positions where _today_fills has yesterday's avg_entry_price
+                        if _fill_price and _exit_price_est:
+                            _drift = abs(_fill_price - _exit_price_est) / _exit_price_est
+                            if _drift > 0.05:
+                                _fill_price = 0  # discard stale fill, fall through to current_price
+                        entry_price = (_fill_price
                                       or (pos.current_price if pos else 0) 
                                       or (pos.entry_price if pos else 0))
                         entry_qty   = abs(pos.qty)    if pos else 0  # abs() prevents negative qty inflating P&L
