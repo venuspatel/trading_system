@@ -823,6 +823,17 @@ class TradingAgent:
                                 'session_start_pnl': 0.0, 'total_pnl': 0.0, 'version': 2
                             }, _pf)
                         logger.info("[Agent] EOD RESET: portfolio.json cleared for clean tomorrow start")
+                        # Write sentinel so next restart knows to skip SyncAlpaca
+                        try:
+                            _sentinel = _os.path.join(
+                                _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                                "logs", "eod_reset_done.flag"
+                            )
+                            with open(_sentinel, 'w') as _sf:
+                                _sf.write(_json.dumps({"reset_date": str(datetime.now(_zi.ZoneInfo('America/New_York')).date())}))
+                            logger.info("[Agent] EOD sentinel written — SyncAlpaca will skip on next restart")
+                        except Exception as _se:
+                            logger.warning(f"[Agent] EOD sentinel write failed: {_se}")
                     except Exception as _pr:
                         logger.warning(f"[Agent] EOD portfolio reset failed: {_pr}")
                 except Exception as _eod_err:
@@ -1025,16 +1036,31 @@ class TradingAgent:
             from datetime import datetime, timezone, timedelta
             from execution.portfolio_tracker import ClosedTrade
 
-            # FIX 2026-06-02: Skip SyncAlpaca after market close
-            # EOD reset clears portfolio.json at 3:30 PM ET — if we sync after that
-            # we immediately re-write today's trades back, defeating the reset.
-            # Tomorrow morning starts fresh with zero positions so there's nothing to sync.
-            import zoneinfo as _zi
+            # FIX 2026-06-02: Skip SyncAlpaca if EOD reset fired today
+            # EOD reset writes a sentinel file. If it exists and was written today,
+            # skip SyncAlpaca to preserve the clean portfolio.json.
+            # Sentinel is cleared on next morning startup so history syncs normally.
+            import zoneinfo as _zi, os as _os2
             _et_now = datetime.now(_zi.ZoneInfo('America/New_York'))
-            _mkt_closed = (_et_now.hour > 16) or (_et_now.hour == 16 and _et_now.minute >= 5)
-            if _mkt_closed:
-                logger.info("[SyncAlpaca] Market closed — skipping sync to preserve EOD reset")
-                return
+            _sentinel = _os2.path.join(
+                _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))),
+                "logs", "eod_reset_done.flag"
+            )
+            if _os2.path.exists(_sentinel):
+                try:
+                    import json as _jj
+                    _flag = _jj.loads(open(_sentinel).read())
+                    _flag_date = _flag.get("reset_date", "")
+                    _today_str = str(_et_now.date())
+                    if _flag_date == _today_str:
+                        logger.info("[SyncAlpaca] EOD reset was done today — skipping sync to preserve clean state")
+                        return
+                    else:
+                        # New day — remove sentinel, allow sync
+                        _os2.remove(_sentinel)
+                        logger.info("[SyncAlpaca] New day — EOD sentinel cleared, syncing normally")
+                except Exception:
+                    pass
 
             KEY = getattr(self._executor, '_api_key', '') or getattr(self._executor, 'api_key', '')
             SEC = getattr(self._executor, '_secret_key', '') or getattr(self._executor, 'secret_key', '')
