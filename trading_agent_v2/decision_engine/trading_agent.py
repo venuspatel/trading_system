@@ -133,7 +133,7 @@ class TradingAgent:
                 secret_key = _alpaca_sec,
                 paper      = getattr(config, "paper_trading", True),
             )
-            self._portfolio.sync_eod_from_alpaca()  # Fix A: inject missing EOD trades
+            pass  # sync_eod_from_alpaca disabled — _sync_today_from_alpaca handles this
         self._trailing_mgr  = TrailingStopManager(config)
         self._adaptive      = AdaptiveThresholdEngine()
         # Explicitly import from decision_engine.strategy_ranker (has record_trade)
@@ -403,7 +403,7 @@ class TradingAgent:
 
         # Clean any corrupted trades from history (negative qty, inflated P&L)
         try:
-            removed = self._portfolio.clean_bad_trades(max_single_pnl=500.0)
+            removed = self._portfolio.clean_bad_trades(max_single_pnl=50000.0)
             if removed:
                 logger.info(f"[Agent] Removed {removed} corrupted trades from history")
         except Exception as ex:
@@ -431,9 +431,9 @@ class TradingAgent:
                 pass
 
 
-            # Sync today's closed trades from Alpaca into portfolio tracker
-            # This catches trades missed when agent was restarted or stop/TP fired
+            # Sync 1 disabled — _sync_today_from_alpaca() is single sync path
             try:
+                raise Exception("Sync1Disabled")
                 from datetime import date, datetime as _dt
                 from execution.portfolio_tracker import ClosedTrade
 
@@ -1130,18 +1130,19 @@ class TradingAgent:
                 else:
                     sells.setdefault(sym, []).append((qty, price, ts))
 
-            # Get existing today's trade symbols to avoid duplicates
+            # Dedup on (symbol, exit_time[:16]) — symbol-only blocks multi-trade symbols
             existing = set()
             for t in self._portfolio._trades:
-                et = (t.exit_time or "")[:10]
-                if et == today:
-                    existing.add(t.symbol.upper())
+                if (t.exit_time or "")[:10] == today:
+                    existing.add((t.symbol.upper(), (t.exit_time or "")[:16]))
 
             injected = 0
             for sym in sells:
                 if sym not in buys:
                     continue
-                if sym in existing:
+                s_list   = sells[sym]
+                exit_ts  = max(x[2] for x in s_list)
+                if (sym, exit_ts[:16]) in existing:
                     continue
 
                 b_list = buys[sym]

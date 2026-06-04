@@ -838,6 +838,12 @@ def get_state():
         pass
 
     return {
+        "portfolio_value": round(
+            float(account.get("equity", 0))
+            or float(account.get("portfolio_value", 0))
+            or float(getattr(_agent, "_portfolio_value", 0))
+            or float((live_portfolio._starting_value or 0) + (live_portfolio._historical_pnl_offset or 0)),
+            2),
         "agent_status":    str(_agent.status if _agent else "idle"),
         "last_error":      getattr(_agent, '_last_scan_error', None) if _agent else None,
         "error_trace":     getattr(_agent, '_last_scan_traceback', None) if _agent else None,
