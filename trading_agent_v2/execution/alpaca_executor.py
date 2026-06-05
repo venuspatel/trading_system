@@ -60,6 +60,7 @@ class AlpacaExecutor:
         self._positions:   Dict[str, Position] = {}
         self._today_fills                       = {}   # FILL_PRICE_CACHE — start empty, fetch disabled
         self._orders:     Dict[str, Order]    = {}   # keyed by client_order_id
+        self._pending_buys: set = set()   # symbols with an in-flight BUY (fail-closed guard)
 
     # ------------------------------------------------------------------
     # Connection
@@ -167,6 +168,9 @@ class AlpacaExecutor:
                 take_profit  = decision.take_profit,
                 entry_time   = datetime.now(timezone.utc),
             )
+            # Position now recorded -> self._positions guards future buys.
+            # Safe to release the in-flight marker.
+            self._pending_buys.discard(symbol)
 
             # 2. Place stop-loss order
             if decision.stop_loss > 0:
@@ -197,6 +201,11 @@ class AlpacaExecutor:
                 f"[Executor] OPENED {symbol}: {qty} shares @ ${fill_price:.2f} | "
                 f"stop=${decision.stop_loss:.2f} tp=${decision.take_profit:.2f}"
             )
+
+        # If the BUY did not result in a recorded position (no fill), release the
+        # in-flight marker so a legitimate later attempt is not blocked forever.
+        if symbol not in self._positions:
+            self._pending_buys.discard(symbol)
 
         return order
 
@@ -456,8 +465,19 @@ class AlpacaExecutor:
         """Place a single order via Alpaca API."""
         # Hard duplicate-buy guard at executor level
         if side == OrderSide.BUY:
+            sym_up = symbol.upper()
+            # FAIL-CLOSED in-flight guard: set synchronously BEFORE any API call.
+            # Closes the same-cycle / submit-before-record race. Released in
+            # _open_position once the position is recorded, or on any failure below.
+            if sym_up in self._pending_buys or sym_up in self._positions:
+                logger.warning(f"[Executor] BLOCKED {sym_up}: in-flight or held (fail-closed guard)")
+                o = Order(symbol=symbol, side=side, qty=qty,
+                          order_type=order_type, time_in_force=tif)
+                o.status = OrderStatus.FAILED
+                o.error_message = "duplicate_buy_blocked"
+                return o
+            self._pending_buys.add(sym_up)
             try:
-                sym_up = symbol.upper()
                 # Check open positions
                 self.update_positions()
                 if sym_up in self.open_positions:
@@ -554,6 +574,8 @@ class AlpacaExecutor:
             order.status        = OrderStatus.FAILED
             order.error_message = str(exc)
             logger.error(f"[Executor] Order failed for {symbol}: {exc}")
+            if side == OrderSide.BUY:
+                self._pending_buys.discard(symbol.upper())
 
         return order
 

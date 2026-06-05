@@ -1743,7 +1743,7 @@ class TradingAgent:
             # They are inherited positions, not V2's own signals — including them
             # corrupts win rate (27% → floor 3.5) and blocks all future trades
             trades = [t for t in self._portfolio._trades
-                      if getattr(t, 'exit_reason', '') != 'Recovered from Alpaca']
+                      if getattr(t, 'exit_reason', '') != 'Reconstructed from Alpaca fills']
             if self._adaptive.should_update(len(trades)):
                 rec = self._adaptive.analyse(trades)
                 if rec.confidence >= 0.4:
