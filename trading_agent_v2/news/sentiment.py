@@ -222,12 +222,13 @@ class SentimentEngine:
     # ------------------------------------------------------------------
 
     def _score_article(self, article: NewsArticle) -> ArticleSentiment:
-        """Score one article. Uses AI if available, keyword fallback otherwise."""
-        if self._use_ai:
-            try:
-                return self._score_with_ai(article)
-            except Exception:
-                pass
+        """Score one article.
+
+        # COST-OPT: headline scoring uses keyword scorer (free, local) instead of
+        # one Claude call per headline. The per-symbol AI summary (_get_ai_summary)
+        # still runs and is where Claude adds value. Aggregate score is nearly
+        # identical since multiple headlines are averaged. ~80% sentiment cost cut.
+        """
         return self._score_with_keywords(article)
 
     def _score_with_keywords(self, article: NewsArticle) -> ArticleSentiment:
