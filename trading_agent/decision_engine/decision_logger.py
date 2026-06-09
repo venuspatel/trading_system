@@ -54,10 +54,35 @@ class DecisionLogger:
     The dashboard reads this file to show the decision log in real time.
     """
 
-    def __init__(self, log_path: str = "logs/decisions.jsonl"):
-        self.log_path   = log_path
+    def __init__(self, log_path: str = "logs/decisions.jsonl",
+                 max_bytes: int = 15_000_000, keep_backups: int = 1):
+        self.log_path     = log_path
+        self.max_bytes    = max_bytes      # rotate when file exceeds this (~15 MB)
+        self.keep_backups = keep_backups   # how many .N rolled files to keep
         self._records   : List[DecisionRecord] = []
         self._load_from_file()
+
+    def _rotate_if_needed(self):
+        """Size-based rotation: if the log exceeds max_bytes, roll it to .1
+        (shifting older backups) and start a fresh file. Keeps disk bounded
+        without losing recent history. Non-fatal on any error."""
+        try:
+            if not os.path.exists(self.log_path):
+                return
+            if os.path.getsize(self.log_path) < self.max_bytes:
+                return
+            # shift existing backups: .1 -> .2, etc., dropping the oldest
+            for i in range(self.keep_backups, 0, -1):
+                older = f"{self.log_path}.{i}"
+                newer = f"{self.log_path}.{i-1}" if i > 1 else self.log_path
+                if os.path.exists(newer):
+                    if i == self.keep_backups and os.path.exists(older):
+                        os.remove(older)          # drop oldest beyond retention
+                    os.replace(newer, older)
+            # in-memory list also trimmed so dashboard memory stays bounded
+            self._records = self._records[-5000:]
+        except Exception as exc:
+            logger.warning(f"[DecisionLogger] rotation skipped: {exc}")
 
     def _load_from_file(self):
         """Load existing decisions from disk on startup so memory stays in sync."""
@@ -93,6 +118,7 @@ class DecisionLogger:
 
     def log(self, record: DecisionRecord):
         """Append a decision record to the log."""
+        self._rotate_if_needed()
         self._records.append(record)
         try:
             with open(self.log_path, "a") as f:
